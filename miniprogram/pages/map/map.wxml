@@ -1,0 +1,7 @@
+<view class="page-shell">
+  <view class="page-title">海钓地图</view>
+  <view class="placeholder-card">
+    <text class="placeholder-title">海域地图尚未接入</text>
+    <text class="placeholder-text">地图页面已配置，后续可接入微信地图组件或自定义海钓位置服务。</text>
+  </view>
+</view>

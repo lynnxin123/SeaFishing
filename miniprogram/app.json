@@ -1,0 +1,66 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/boat/boat",
+    "pages/map/map",
+    "pages/event/event",
+    "pages/my/my",
+    "pages/logs/logs"
+  ],
+  "window": {
+    "navigationBarTextStyle": "white",
+    "navigationBarBackgroundColor": "#0b4f8c",
+    "backgroundColor": "#e6f5ff",
+    "navigationStyle": "custom"
+  },
+  "style": "v2",
+  "tabBar": {
+    "color": "#7aa9d7",
+    "selectedColor": "#0c6dff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "/images/tab-home.png",
+        "selectedIconPath": "/images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/boat/boat",
+        "text": "海钓约船",
+        "iconPath": "/images/tab-boat.png",
+        "selectedIconPath": "/images/tab-boat-active.png"
+      },
+      {
+        "pagePath": "pages/map/map",
+        "text": "海钓地图",
+        "iconPath": "/images/tab-map.png",
+        "selectedIconPath": "/images/tab-map-active.png"
+      },
+      {
+        "pagePath": "pages/event/event",
+        "text": "赛事报名",
+        "iconPath": "/images/tab-event.png",
+        "selectedIconPath": "/images/tab-event-active.png"
+      },
+      {
+        "pagePath": "pages/my/my",
+        "text": "我的",
+        "iconPath": "/images/tab-my.png",
+        "selectedIconPath": "/images/tab-my-active.png"
+      }
+    ]
+  },
+  "rendererOptions": {
+    "skyline": {
+      "defaultDisplayBlock": true,
+      "disableABTest": true,
+      "sdkVersionBegin": "3.0.0",
+      "sdkVersionEnd": "15.255.255"
+    }
+  },
+  "componentFramework": "glass-easel",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

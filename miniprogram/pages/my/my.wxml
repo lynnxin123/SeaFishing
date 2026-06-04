@@ -1,0 +1,28 @@
+<view class="page-shell">
+  <view class="page-title">我的</view>
+  <block wx:if="{{hasUserInfo}}">
+    <view class="user-card">
+      <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
+      <view>
+        <text class="user-name">{{userInfo.nickName}}</text>
+        <text class="user-sub">已登录，以下为您的赛事记录</text>
+      </view>
+    </view>
+    <view class="section-card">
+      <text class="section-title">我的赛事</text>
+      <block wx:for="{{events}}" wx:key="id">
+        <view class="event-item">
+          <text class="event-item-title">{{item.title}}</text>
+          <text class="event-item-meta">{{item.date}}</text>
+        </view>
+      </block>
+    </view>
+  </block>
+  <block wx:else>
+    <view class="section-card">
+      <text class="section-title">微信授权登录</text>
+      <text class="section-text">请点击按钮授权获取头像和昵称，以查看我的赛事列表。</text>
+      <button class="auth-button" open-type="getUserProfile" bindgetuserinfo="getUserProfile">一键登录</button>
+    </view>
+  </block>
+</view>

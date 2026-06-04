@@ -1,0 +1,7 @@
+<view class="page-shell">
+  <view class="page-title">海钓约船</view>
+  <view class="placeholder-card">
+    <text class="placeholder-title">优质出海渔船</text>
+    <text class="placeholder-text">请回到首页选择日期和人数，快速预约海钓渔船服务。</text>
+  </view>
+</view>

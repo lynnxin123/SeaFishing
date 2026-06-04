@@ -1,0 +1,143 @@
+<view class="page-scroll">
+  <view class="hero-area">
+    <swiper class="hero-swiper" indicator-dots autoplay circular interval="3800" duration="500">
+      <block wx:for="{{bannerImages}}" wx:key="url">
+        <swiper-item>
+          <image class="hero-image" src="{{item.url}}" mode="aspectFill"></image>
+        </swiper-item>
+      </block>
+    </swiper>
+
+    <view class="hero-mask"></view>
+
+    <view class="hero-top">
+      <view />
+      <view class="hero-center-title">
+        <text class="hero-title">海发海钓</text>
+      </view>
+    </view>
+
+    <view class="hero-title-wrap">
+      <text class="hero-subtitle">深海出航 · 海发官方海钓平台</text>
+    </view>
+  </view>
+
+  <view class="info-block">
+    <view class="weather-card">
+      <view class="weather-row enhanced">
+        <view class="weather-left">
+          <view class="date-badge">
+            <text class="date-day">{{weather.date}}</text>
+            <text class="date-week">{{weather.week}}</text>
+          </view>
+          <view class="weather-main">
+            <text class="weather-icon">{{weather.icon}}</text>
+            <text class="weather-temp">{{weather.temp}}</text>
+            <text class="weather-detail">{{weather.desc}}</text>
+            <view class="wind-row">
+              <text class="wind-icon">💨</text>
+              <text class="wind-text">{{weather.wind}}</text>
+              <text class="sea-condition">· 海况：{{weather.sea}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="weather-tide tide-card">
+          <view class="tide-item">
+            <view class="tide-type">涨潮</view>
+            <view class="tide-time-row">
+              <text class="tide-time">{{tide[0].time}}</text>
+              <text class="tide-height">{{tide[0].height}}</text>
+            </view>
+          </view>
+          <view class="tide-item">
+            <view class="tide-type">落潮</view>
+            <view class="tide-time-row">
+              <text class="tide-time">{{tide[1].time}}</text>
+              <text class="tide-height">{{tide[1].height}}</text>
+            </view>
+          </view>
+          <view class="tide-note">下次潮汐数据以实时接口为准</view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="tabs-block">
+    <view class="tabs-header">
+      <block wx:for="{{tabs}}" wx:key="index">
+        <view class="tabs-item {{activeTab == index ? 'active' : ''}}" data-index="{{index}}" bindtap="onTabChange">{{item}}</view>
+      </block>
+    </view>
+
+    <view class="tabs-content">
+      <block wx:if="{{activeTab == 0}}">
+        <view class="form-box">
+          <view class="form-row">
+            <text class="form-label">出行日期</text>
+            <picker class="form-picker" mode="date" value="{{selectedDate}}" start="{{minDate}}" end="{{maxDate}}" bindchange="bindDateChange">
+              <view class="form-value">{{selectedDate}}</view>
+            </picker>
+          </view>
+          <view class="form-row">
+            <text class="form-label">出行人数</text>
+            <view class="pax-box">
+              <view class="pax-btn" data-delta="-1" bindtap="changePax">-</view>
+              <text class="pax-number">{{pax}}</text>
+              <view class="pax-btn" data-delta="1" bindtap="changePax">+</view>
+            </view>
+          </view>
+        </view>
+
+        <block wx:for="{{boats}}" wx:key="id">
+          <view class="boat-card">
+            <image class="boat-image" src="{{item.image}}" mode="aspectFill"></image>
+            <view class="boat-content">
+              <view class="boat-head">
+                <text class="boat-name">{{item.name}}</text>
+                <text class="boat-price">¥{{item.price}}/次</text>
+              </view>
+              <view class="boat-info">船长：{{item.captain}}</view>
+              <view class="boat-info">载客上限：{{item.capacity}} 人</view>
+              <view class="boat-foot">
+                <text class="boat-tag">优质推荐</text>
+                <view class="reserve-btn" data-id="{{item.id}}" bindtap="openReserve">立即预约</view>
+              </view>
+            </view>
+          </view>
+        </block>
+      </block>
+
+      <block wx:elif="{{activeTab == 1}}">
+        <block wx:for="{{eventCards}}" wx:key="id">
+          <view class="event-card" data-id="{{item.id}}" bindtap="onEventTap">
+            <image class="event-image" src="{{item.banner}}" mode="aspectFill"></image>
+            <view class="event-content">
+              <text class="event-name">{{item.title}}</text>
+              <view class="event-meta">
+                <text>{{item.location}}</text>
+                <text>{{item.date}}</text>
+              </view>
+            </view>
+          </view>
+        </block>
+      </block>
+    </view>
+  </view>
+
+  <view class="spacer"></view>
+</view>
+<block wx:if="{{showReservePopup}}">
+  <view class="popup-mask" bindtap="closeReserve"></view>
+  <view class="popup-panel">
+    <text class="popup-title">预约确认</text>
+    <view class="popup-row"><text>航线：</text><text>{{reserveBoat.name}}</text></view>
+    <view class="popup-row"><text>船长：</text><text>{{reserveBoat.captain}}</text></view>
+    <view class="popup-row"><text>出行人数：</text><text>{{pax}} 人</text></view>
+    <view class="popup-row"><text>出发日期：</text><text>{{selectedDate}}</text></view>
+    <view class="popup-actions">
+      <view class="popup-btn cancel" bindtap="closeReserve">取消</view>
+      <view class="popup-btn confirm" bindtap="confirmReserve">确认预约</view>
+    </view>
+  </view>
+</block>

@@ -1,0 +1,23 @@
+<view class="page-shell">
+  <view class="page-title">赛事详情</view>
+  <block wx:if="{{selectedEvent}}">
+    <view class="section-card">
+      <text class="section-title">{{selectedEvent.title}}</text>
+      <text class="section-text">地点：{{selectedEvent.location}}</text>
+      <text class="section-text">时间：{{selectedEvent.date}}</text>
+      <text class="section-text">该赛事为海钓挑战赛，预计报名人数众多，敬请期待更多详情。</text>
+    </view>
+  </block>
+  <block wx:else>
+    <view class="section-card">
+      <text class="section-title">赛事报名</text>
+      <text class="section-text">点击首页赛事卡片查看详情，或在这里浏览最新海钓赛事。</text>
+    </view>
+    <block wx:for="{{events}}" wx:key="id">
+      <view class="event-row">
+        <text class="event-row-title">{{item.title}}</text>
+        <text class="event-row-meta">{{item.date}}</text>
+      </view>
+    </block>
+  </block>
+</view>
