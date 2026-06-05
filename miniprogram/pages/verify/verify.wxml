@@ -1,0 +1,39 @@
+<view class="verify-page">
+  <navigation-bar title="实名认证" back="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+
+  <view class="verify-form">
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>证件类型</view>
+      <picker mode="selector" range="{{idTypeOptions}}" value="{{idTypeIndex}}" bindchange="onIdTypeChange">
+        <view class="form-picker">
+          <text class="picker-text">{{idTypeOptions[idTypeIndex]}}</text>
+          <text class="picker-arrow">▼</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>姓名</view>
+      <input
+        class="form-input"
+        placeholder="请输入姓名"
+        value="{{realName}}"
+        bindinput="onNameInput"
+        maxlength="20"
+      />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>证件号</view>
+      <input
+        class="form-input"
+        placeholder="请输入证件号"
+        value="{{idNumber}}"
+        bindinput="onIdInput"
+        maxlength="18"
+      />
+    </view>
+
+    <view class="submit-btn" bindtap="onSubmit">提交</view>
+  </view>
+</view>

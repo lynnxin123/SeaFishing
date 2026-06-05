@@ -1,7 +1,154 @@
+<wxs module="util" src="./boat.wxs"></wxs>
 <view class="page-shell">
-  <view class="page-title">海钓约船</view>
-  <view class="placeholder-card">
-    <text class="placeholder-title">优质出海渔船</text>
-    <text class="placeholder-text">请回到首页选择日期和人数，快速预约海钓渔船服务。</text>
+  <navigation-bar title="海钓约船" back="{{false}}" color="black" background="#ffffff"></navigation-bar>
+
+  <!-- 背景图铺满至卡片底边，卡片悬浮叠在背景之上 -->
+  <view class="hero-wrap">
+    <image class="hero-wrap__bg" src="{{heroBanner}}" mode="aspectFill" />
+    <view class="hero-wrap__mask"></view>
+    <view class="hero-banner__title-wrap">
+      <text class="hero-banner__title">海钓起航 渔乐无穷</text>
+    </view>
+    <view class="search-card">
+    <view class="form-row">
+      <view class="form-item">
+        <text class="form-label">请选择预约日期</text>
+        <picker class="form-picker" mode="date" value="{{search.date}}" bindchange="onDateChange" start="2000-01-01" end="2099-12-31">
+          <view class="picker-value">{{search.date}}</view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">请选择出港码头</text>
+        <picker class="form-picker" mode="selector" range="{{wharfOptions}}" value="{{search.wharfIndex}}" bindchange="onWharfChange">
+          <view class="picker-value">{{search.wharf}}</view>
+        </picker>
+      </view>
+    </view>
+    <view class="form-row">
+      <view class="form-item">
+        <text class="form-label">乘船人数</text>
+        <input class="text-input" type="number" placeholder="请输入乘船人数" value="{{search.people}}" bindinput="onPeopleInput" />
+      </view>
+      <view class="form-item">
+        <text class="form-label">船号/船长</text>
+        <input class="text-input" type="text" placeholder="请输入船号/船长" value="{{search.keyword}}" bindinput="onKeywordInput" />
+      </view>
+    </view>
+    <button class="search-button" bindtap="onSearch">搜索</button>
+    </view>
+  </view>
+
+  <view class="page-body">
+  <!-- 搜索结果区 -->
+  <view wx:if="{{hasSearched}}" class="result-header">
+    <view class="result-left">搜索结果</view>
+    <view class="result-actions">
+      <view class="action-button" bindtap="toggleSortPopup">
+        <image class="action-icon" src="/images/icon-sort-price.png" mode="aspectFit" />
+        <text>{{currentSortText}}</text>
+        <text class="action-arrow">∨</text>
+      </view>
+      <view class="action-button" bindtap="toggleFilterPopup">
+        <image class="action-icon" src="/images/icon-filter.png" mode="aspectFit" />
+        <text>筛选</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{hasSearched}}" class="list-container">
+    <view wx:if="{{filteredShips.length === 0}}" class="empty-card">
+      <text class="empty-text">暂无符合条件的出海渔船，请调整筛选条件重新搜索。</text>
+    </view>
+    <block wx:for="{{visibleShips}}" wx:for-item="item" wx:key="index">
+      <view class="ship-card" bindtap="onShipTap" data-index="{{index}}">
+        <view class="ship-row">
+          <view class="ship-image-wrap">
+            <image src="{{item.images[0] || '/images/boat1.jpg'}}" class="ship-image" mode="aspectFill" />
+          </view>
+          <view class="ship-content">
+            <view class="ship-header">
+              <view class="ship-title">{{item.shipName}}</view>
+            </view>
+            <view class="ship-submeta">
+              <text>可载客{{item.maxNum}}人</text>
+              <text class="dot">·</text>
+              <text>{{item.shipLen ? '长' + item.shipLen + '米' : '长暂无'}}</text>
+              <text class="dot">·</text>
+              <text>{{item.shipWid ? '宽' + item.shipWid + '米' : '宽暂无'}}</text>
+            </view>
+            <view class="ship-stats-row">
+              <view class="stat">评分：<text class="stat-value">{{item.scoreDisplay}}</text></view>
+              <view class="stat">近三个月出航：<text class="stat-value">{{item.sailCount}}次</text></view>
+            </view>
+            <view class="ship-wharf-row">
+              <text>码头：{{item.displayWharf}} 船号：{{item.boatId}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="ship-divider-dashed"></view>
+        <view class="captain-row-full">
+          <block wx:if="{{item.captainAvatar}}">
+            <image class="captain-avatar-img" src="{{item.captainAvatar}}" />
+          </block>
+          <block wx:else>
+            <view class="captain-avatar">{{item.captain.substr(0,1)}}</view>
+          </block>
+          <view class="captain-info">
+            <text class="captain-name" title="{{item.captain}}">船长：{{item.captain}}</text>
+          </view>
+          <view class="ship-price">¥{{item.price}}<text class="price-suffix">起</text></view>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 综合排序弹窗 -->
+  <view wx:if="{{showSortPopup}}" class="popup-mask" bindtap="toggleSortPopup">
+    <view class="popup-sheet" catchtap="" catchtouchmove>
+      <view class="popup-title">综合排序</view>
+      <block wx:for="{{sortOptions}}" wx:key="value">
+        <view class="popup-option {{currentSort === item.value ? 'popup-option-active' : ''}}" bindtap="onSortSelect" data-value="{{item.value}}">
+          {{item.label}}
+        </view>
+      </block>
+    </view>
+  </view>
+
+  <!-- 全筛选弹窗：仅点遮罩关闭，选条件不关闭 -->
+  <view wx:if="{{showFilterPopup}}" class="popup-mask">
+    <view class="popup-mask-bg" bindtap="onFilterCancel"></view>
+    <view class="popup-sheet filter-sheet" catchtap="stopPopupTap" catchtouchmove="stopPopupTap">
+      <view class="popup-title">筛选</view>
+      <view class="filter-section">
+        <text class="filter-label">船舶设施</text>
+        <view class="filter-options wrap">
+          <view class="filter-chip {{filtersDraft.facilities.length === 0 ? 'active' : ''}}" catchtap="onFilterFacilityToggle" data-value="all">全部</view>
+          <view wx:for="{{facilityOptions}}" wx:key="value" class="filter-chip {{util.includes(filtersDraft.facilities, item.value) ? 'active' : ''}}" catchtap="onFilterFacilityToggle" data-value="{{item.value}}">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">船舶长度</text>
+        <view class="filter-options">
+          <view wx:for="{{lengthOptions}}" wx:key="value" class="filter-chip {{filtersDraft.length === item.value ? 'active' : ''}}" catchtap="onFilterLengthSelect" data-value="{{item.value}}">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">船长经验</text>
+        <view class="filter-options wrap">
+          <view wx:for="{{experienceOptions}}" wx:key="value" class="filter-chip {{filtersDraft.experience === item.value ? 'active' : ''}}" catchtap="onFilterExperienceSelect" data-value="{{item.value}}">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="filter-section">
+        <text class="filter-label">船长评分</text>
+        <view class="filter-options wrap">
+          <view wx:for="{{scoreOptions}}" wx:key="value" class="filter-chip {{filtersDraft.score === item.value ? 'active' : ''}}" catchtap="onFilterScoreSelect" data-value="{{item.value}}">{{item.label}}</view>
+        </view>
+      </view>
+      <view class="filter-footer">
+        <view class="reset-btn" catchtap="onFilterReset">重置</view>
+        <view class="confirm-btn" catchtap="onFilterConfirm">确定</view>
+      </view>
+    </view>
+  </view>
   </view>
 </view>

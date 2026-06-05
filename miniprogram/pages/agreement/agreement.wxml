@@ -1,0 +1,8 @@
+<view class="agreement-page">
+  <navigation-bar title="{{pageTitle}}" back="{{true}}" color="#141d3a" background="#ffffff"></navigation-bar>
+  <scroll-view class="agreement-scroll" scroll-y>
+    <view class="agreement-content">
+      <text class="agreement-body">{{content}}</text>
+    </view>
+  </scroll-view>
+</view>

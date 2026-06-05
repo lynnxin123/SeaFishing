@@ -1,3 +1,6 @@
+const auth = require('../../utils/auth')
+const bookingOrders = require('../../utils/bookingOrders')
+
 const today = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
 const formatDate = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -50,7 +53,7 @@ Page({
     boats: [
       {
         id: 1,
-        image: '/images/yuyuebanner-1.jpg',
+        image: '/images/Reservation1.jpg',
         name: '深海探索',
         captain: '阿峰',
         capacity: 8,
@@ -58,7 +61,7 @@ Page({
       },
       {
         id: 2,
-        image: '/images/yuyuebanner-2.jpg',
+        image: '/images/Reservation2.jpg',
         name: '海风之旅',
         captain: '婷婷',
         capacity: 8,
@@ -66,7 +69,7 @@ Page({
       },
       {
         id: 3,
-        image: '/images/yuyuebanner-3.jpg',
+        image: '/images/Reservation3.jpg',
         name: '蓝海号渔船',
         captain: '大海',
         capacity: 10,
@@ -76,21 +79,21 @@ Page({
     eventCards: [
       {
         id: 1,
-        banner: '/images/baomingbanner-1.jpg',
+        banner: '/images/competition1.jpg',
         title: '大鱼挑战赛',
         location: '长山群岛',
         date: '2026.07.12-07.14'
       },
       {
         id: 2,
-        banner: '/images/baomingbanner-2.jpg',
+        banner: '/images/competition2.jpg',
         title: '金秋海钓赛',
         location: '大连海域',
         date: '2026.09.18-09.20'
       },
       {
         id: 3,
-        banner: '/images/baomingbanner-3.jpg',
+        banner: '/images/competition3.jpg',
         title: '冠军对决赛',
         location: '烟台海岸',
         date: '2026.08.05-08.07'
@@ -105,6 +108,20 @@ Page({
 
   onLoad() {
     // 这里可以后续补充接口请求
+  },
+
+  onShow() {
+    const boatId = bookingOrders.consumePendingIndexReserve()
+    if (boatId == null || !auth.isLoggedIn()) {
+      return
+    }
+    if (!auth.isVerified()) {
+      bookingOrders.setPendingIndexReserve(boatId)
+      auth.promptVerify({ from: 'reserve' })
+      return
+    }
+    const boat = this.data.boats.find((item) => item.id === boatId) || { name: '', captain: '' }
+    this.setData({ showReservePopup: true, reserveBoat: boat })
   },
 
   onTabChange(event: any) {
@@ -125,6 +142,16 @@ Page({
 
   openReserve(event: any) {
     const id = Number(event.currentTarget.dataset.id)
+    if (!auth.isLoggedIn()) {
+      bookingOrders.setPendingIndexReserve(id)
+      auth.goLogin({ from: 'reserve' })
+      return
+    }
+    if (!auth.isVerified()) {
+      bookingOrders.setPendingIndexReserve(id)
+      auth.promptVerify({ from: 'reserve' })
+      return
+    }
     const boat = this.data.boats.find((item) => item.id === id) || { name: '', captain: '' }
     this.setData({ showReservePopup: true, reserveBoat: boat })
   },
@@ -134,7 +161,30 @@ Page({
   },
 
   confirmReserve() {
-    wx.showToast({ title: '预约提交成功，接口待接入', icon: 'none' })
+    if (!auth.isLoggedIn()) {
+      auth.goLogin({ from: 'reserve' })
+      return
+    }
+    if (!auth.isVerified()) {
+      const boat = this.data.reserveBoat as { id?: number }
+      if (boat && boat.id != null) {
+        bookingOrders.setPendingIndexReserve(boat.id)
+      }
+      auth.promptVerify({ from: 'reserve' })
+      return
+    }
+    const boat = this.data.reserveBoat as { name?: string; captain?: string; price?: number; image?: string }
+    bookingOrders.addBookingOrder({
+      shipName: boat.name || '海钓预约',
+      captainName: boat.captain || '',
+      coverImage: boat.image || '/images/Reservation1.jpg',
+      price: boat.price,
+      date: this.data.selectedDate,
+      people: String(this.data.pax),
+      wharf: '待定',
+      status: 'pending_accept'
+    })
+    wx.showToast({ title: '预约成功', icon: 'success' })
     this.closeReserve()
   },
 

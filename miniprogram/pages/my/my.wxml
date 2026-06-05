@@ -1,28 +1,92 @@
-<view class="page-shell">
-  <view class="page-title">我的</view>
-  <block wx:if="{{hasUserInfo}}">
-    <view class="user-card">
-      <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="cover"></image>
-      <view>
-        <text class="user-name">{{userInfo.nickName}}</text>
-        <text class="user-sub">已登录，以下为您的赛事记录</text>
+<view class="my-page">
+  <view class="nav-bar">
+    <text class="nav-title">我的</text>
+  </view>
+
+  <view class="top-panel">
+    <view wx:if="{{!isLoggedIn}}" class="user-header">
+      <view class="login-hit" bindtap="onGoLogin">
+        <view class="login-hit-inner">
+          <image class="avatar avatar-guest-img" src="/images/my-icon-avatar.png" mode="aspectFit"></image>
+          <view class="login-tip">请点击登录</view>
+        </view>
+      </view>
+      <view class="bell-btn" catchtap="onBellTap">
+        <view class="ui-bell" aria-hidden="true">
+          <view class="ui-bell__handle"></view>
+          <view class="ui-bell__dome"></view>
+          <view class="ui-bell__rim"></view>
+          <view class="ui-bell__clapper"></view>
+        </view>
       </view>
     </view>
-    <view class="section-card">
-      <text class="section-title">我的赛事</text>
-      <block wx:for="{{events}}" wx:key="id">
-        <view class="event-item">
-          <text class="event-item-title">{{item.title}}</text>
-          <text class="event-item-meta">{{item.date}}</text>
+
+    <!-- 已登录 -->
+    <view wx:else class="user-header">
+      <image
+        wx:if="{{userInfo.avatarUrl}}"
+        class="avatar"
+        src="{{userInfo.avatarUrl}}"
+        mode="aspectFill"
+      ></image>
+      <image wx:else class="avatar avatar-guest-img" src="/images/my-icon-avatar.png" mode="aspectFit"></image>
+      <view class="user-meta">
+        <view class="name-row">
+          <text class="user-name">{{userInfo.nickName}}</text>
+          <text class="tag-verify" wx:if="{{showUnverified}}" bindtap="onGoVerify">未实名</text>
         </view>
-      </block>
+        <view class="level-tag">
+          <text class="level-crown">♛</text>
+          <text class="level-text">{{userInfo.levelName}}</text>
+        </view>
+      </view>
+      <view class="bell-btn" bindtap="onBellTap">
+        <view class="ui-bell" aria-hidden="true">
+          <view class="ui-bell__handle"></view>
+          <view class="ui-bell__dome"></view>
+          <view class="ui-bell__rim"></view>
+          <view class="ui-bell__clapper"></view>
+        </view>
+      </view>
     </view>
-  </block>
-  <block wx:else>
-    <view class="section-card">
-      <text class="section-title">微信授权登录</text>
-      <text class="section-text">请点击按钮授权获取头像和昵称，以查看我的赛事列表。</text>
-      <button class="auth-button" open-type="getUserProfile" bindgetuserinfo="getUserProfile">一键登录</button>
+
+    <view class="stats-row">
+      <view class="stat-item">
+        <image class="stat-icon-img" src="/images/my-icon-medal.png" mode="aspectFit"></image>
+        <text class="stat-value" wx:if="{{isLoggedIn}}">{{userInfo.medals}}</text>
+        <text class="stat-label">勋章</text>
+      </view>
+      <view class="stat-item">
+        <image class="stat-icon-img" src="/images/my-icon-point.png" mode="aspectFit"></image>
+        <text class="stat-value" wx:if="{{isLoggedIn}}">{{userInfo.points}}</text>
+        <text class="stat-label">积分</text>
+      </view>
+      <view class="stat-item">
+        <image class="stat-icon-img" src="/images/my-icon-fish.png" mode="aspectFit"></image>
+        <text class="stat-value" wx:if="{{isLoggedIn}}">{{userInfo.fishFood}}</text>
+        <text class="stat-label">鱼粮</text>
+      </view>
     </view>
-  </block>
+  </view>
+
+  <!-- 菜单 -->
+  <view class="menu-card">
+    <view
+      wx:for="{{menuList}}"
+      wx:key="id"
+      class="menu-item"
+      data-id="{{item.id}}"
+      bindtap="onMenuTap"
+    >
+      <text class="menu-text">{{item.title}}</text>
+      <text class="menu-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-wrap" wx:if="{{isLoggedIn}}">
+    <view class="logout-btn" bindtap="onLogout">退出登录</view>
+  </view>
+
+  <view class="page-bottom-spacer"></view>
 </view>

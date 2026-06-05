@@ -1,0 +1,173 @@
+<view class="detail-page">
+  <navigation-bar title="船舶详情" back="{{true}}" color="#141d3a" background="#ffffff"></navigation-bar>
+
+  <view class="detail-content">
+    <!-- 船舶名称 + 图片 + 概要 -->
+    <view class="ship-head">
+      <view class="ship-name">{{ship.shipName}}</view>
+      <image class="ship-cover" src="{{ship.coverImage}}" mode="aspectFill" />
+      <view class="ship-brief">
+        <text class="ship-spec">可载{{ship.maxNum}}人 长{{ship.shipLen}}米 宽{{ship.shipWid}}米</text>
+        <view class="ship-fee">
+          <text class="fee-label">报名费：</text>
+          <text class="fee-price">¥ {{ship.price}}</text>
+          <text class="fee-suffix">起</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- Tab 标签栏 -->
+    <view class="tab-bar">
+      <block wx:for="{{tabs}}" wx:key="*this">
+        <view
+          class="tab-item {{activeTab === index ? 'tab-item-active' : ''}}"
+          data-index="{{index}}"
+          bindtap="onTabChange"
+        >
+          <text class="tab-text">{{item}}</text>
+          <view wx:if="{{activeTab === index}}" class="tab-indicator"></view>
+        </view>
+      </block>
+    </view>
+
+    <!-- 船舶介绍 -->
+    <view class="tab-panel" wx:if="{{activeTab === 0}}">
+      <view class="section-card">
+        <view class="section-title">船舶信息</view>
+        <view class="info-line">限制条件：{{ship.ageLimit}}</view>
+        <view class="info-grid">
+          <view class="info-col">
+            <view class="info-line">发动机数量：{{ship.engineCount}}</view>
+            <view class="info-line">是否在船检期间内：{{ship.inSurvey}}</view>
+            <view class="info-line">是否有雷达：{{ship.hasRadar}}</view>
+          </view>
+          <view class="info-col">
+            <view class="info-line">发动机总马力：{{ship.enginePower}}</view>
+            <view class="info-line">是否有鱼探：{{ship.hasFishFinder}}</view>
+            <view class="info-line">是否提供钓具：{{ship.provideTackle}}</view>
+          </view>
+        </view>
+      </view>
+
+      <view class="section-divider"></view>
+
+      <view class="section-card">
+        <view class="section-title">船舶设施</view>
+        <view class="facility-tags" wx:if="{{ship.facilities.length > 0}}">
+          <view wx:for="{{ship.facilities}}" wx:key="*this" class="facility-tag">{{item}}</view>
+        </view>
+        <view class="info-line muted" wx:else>暂无船舶设施信息</view>
+      </view>
+
+      <view class="section-divider"></view>
+
+      <view class="section-card">
+        <view class="section-title">船长信息</view>
+        <view class="captain-block">
+          <image class="captain-avatar" src="{{ship.captainAvatar}}" mode="aspectFill" />
+          <view class="captain-main">
+            <view class="captain-name-row">
+              <text class="captain-name">{{ship.captainName}}（{{ship.captainGender}}）</text>
+              <view class="captain-tag">开船{{ship.sailingYears}}年</view>
+            </view>
+            <view class="captain-stats">
+              <text>近三个月出航：<text class="stat-highlight">{{ship.sailCount}}次</text></text>
+              <text class="stat-gap">评分：<text class="stat-highlight">{{ship.scoreDisplay}}</text></text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="section-divider"></view>
+
+      <view class="section-card section-card-simple">
+        <view class="section-title">服务内容</view>
+        <view class="info-line muted" wx:if="{{!ship.serviceContent}}">暂无服务内容说明</view>
+        <view class="info-line" wx:else>{{ship.serviceContent}}</view>
+      </view>
+
+      <view class="section-divider"></view>
+
+      <view class="section-card section-card-last">
+        <view class="section-title">海钓行程</view>
+        <view class="info-line">出港码头：{{ship.departWharf}}</view>
+        <view class="info-line">回港码头：{{ship.returnWharf}}</view>
+        <view class="info-line">行程说明：{{ship.itineraryDesc || '暂无'}}</view>
+      </view>
+    </view>
+
+    <!-- 海钓提示 -->
+    <view class="tab-panel" wx:elif="{{activeTab === 1}}">
+      <view class="section-card section-card-last">
+        <view class="plain-text">{{ship.fishingTips}}</view>
+      </view>
+    </view>
+
+    <!-- 退改规则 -->
+    <view class="tab-panel" wx:elif="{{activeTab === 2}}">
+      <view class="section-card section-card-last">
+        <view class="plain-text">{{ship.refundRules}}</view>
+      </view>
+    </view>
+
+    <!-- 评价 -->
+    <view class="tab-panel" wx:elif="{{activeTab === 3}}">
+      <view class="section-card section-card-last">
+        <block wx:if="{{ship.reviews.length > 0}}">
+          <block wx:for="{{ship.reviews}}" wx:key="id">
+            <view class="review-item">
+              <text class="review-user">{{item.user}}</text>
+              <text class="review-content">{{item.content}}</text>
+            </view>
+          </block>
+        </block>
+        <view class="empty-tip" wx:else>暂无评价</view>
+      </view>
+    </view>
+
+    <view class="scroll-bottom-spacer"></view>
+  </view>
+
+  <!-- 底部固定栏 -->
+  <view class="bottom-bar">
+    <view class="bottom-left">
+      <view class="bottom-action" bindtap="onToggleFavorite">
+        <text class="icon-symbol {{favorited ? 'icon-symbol-active' : ''}}">{{favorited ? '♥' : '♡'}}</text>
+        <text class="bottom-action-text">收藏</text>
+      </view>
+      <view class="bottom-action" bindtap="onShare">
+        <view class="icon-share-wrap">
+          <view class="icon-share-arrow"></view>
+        </view>
+        <text class="bottom-action-text">分享</text>
+      </view>
+    </view>
+    <view class="book-btn" bindtap="onBook">下单预约</view>
+  </view>
+
+  <!-- 预约信息弹层：选择出行日期与人数 -->
+  <view class="booking-mask" wx:if="{{showBookingSheet}}" bindtap="closeBookingSheet"></view>
+  <view class="booking-sheet" wx:if="{{showBookingSheet}}">
+    <view class="booking-sheet-title">填写预约信息</view>
+    <view class="booking-field">
+      <view class="booking-label">出行日期</view>
+      <picker mode="date" value="{{bookingDate}}" start="2000-01-01" end="2099-12-31" bindchange="onBookingDateChange">
+        <view class="booking-picker">{{bookingDate || '请选择日期'}}</view>
+      </picker>
+    </view>
+    <view class="booking-field">
+      <view class="booking-label">乘船人数（最多{{ship.maxNum}}人）</view>
+      <input
+        class="booking-input"
+        type="number"
+        placeholder="请输入乘船人数"
+        value="{{bookingPeople}}"
+        bindinput="onBookingPeopleInput"
+      />
+    </view>
+    <view class="booking-actions">
+      <view class="booking-cancel" bindtap="closeBookingSheet">取消</view>
+      <view class="booking-confirm" bindtap="onConfirmBooking">确认预约</view>
+    </view>
+  </view>
+</view>

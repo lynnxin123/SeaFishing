@@ -1,7 +1,12 @@
 // app.ts
 App<IAppOption>({
-  globalData: {},
+  globalData: {
+    isLoggedIn: false,
+    userProfile: null as WechatMiniprogram.IAnyObject | null
+  },
   onLaunch() {
+    const auth = require('./utils/auth')
+    auth.syncLoginState()
     // 展示本地存储能力
     const logs = wx.getStorageSync('logs') || []
     logs.unshift(Date.now())

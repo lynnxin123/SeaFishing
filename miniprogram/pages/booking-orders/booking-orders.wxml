@@ -1,0 +1,51 @@
+<view class="orders-page">
+  <navigation-bar title="海钓预约订单" back="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+
+  <scroll-view class="tab-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+    <view class="tab-row">
+      <view
+        wx:for="{{tabs}}"
+        wx:key="key"
+        class="tab-item {{activeTab === index ? 'tab-item--active' : ''}}"
+        data-index="{{index}}"
+        bindtap="onTabTap"
+      >
+        <text class="tab-text">{{item.label}}</text>
+        <view class="tab-line" wx:if="{{activeTab === index}}"></view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="orders-body">
+    <view wx:if="{{isEmpty}}" class="empty-wrap">
+      <view class="empty-icon" aria-hidden="true">
+        <view class="empty-doc"></view>
+        <view class="empty-line empty-line--1"></view>
+        <view class="empty-line empty-line--2"></view>
+        <view class="empty-line empty-line--3"></view>
+      </view>
+      <text class="empty-text">暂无数据</text>
+    </view>
+
+    <scroll-view wx:else class="order-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="order-list">
+        <view wx:for="{{orders}}" wx:key="id" class="order-card">
+          <image class="order-cover" src="{{item.coverImage}}" mode="aspectFill" />
+          <view class="order-main">
+            <view class="order-title-row">
+              <text class="order-ship">{{item.shipName}}</text>
+              <text class="order-status">{{item.statusLabel}}</text>
+            </view>
+            <text class="order-meta">出行日期：{{item.date || '待定'}}</text>
+            <text class="order-meta">出发码头：{{item.wharf || item.departWharf || '待定'}}</text>
+            <text class="order-meta" wx:if="{{item.people}}">预约人数：{{item.people}}人</text>
+            <view class="order-foot">
+              <text class="order-no">订单号 {{item.orderNo}}</text>
+              <text class="order-price" wx:if="{{item.price}}">¥{{item.price}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>
