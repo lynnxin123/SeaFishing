@@ -12,6 +12,14 @@
     "pages/booking-orders/booking-orders",
     "pages/logs/logs"
   ],
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于展示附近钓场、按距离排序并导航到码头/钓点"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation"
+  ],
   "window": {
     "navigationBarTextStyle": "white",
     "navigationBarBackgroundColor": "#0b4f8c",

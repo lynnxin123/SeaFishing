@@ -6,6 +6,8 @@
   <view class="hero-wrap">
     <image class="hero-wrap__bg" src="{{heroBanner}}" mode="aspectFill" />
     <view class="hero-wrap__mask"></view>
+    <view class="hero-wrap__fade"></view>
+    <view class="hero-wrap__bottom"></view>
     <view class="hero-banner__title-wrap">
       <text class="hero-banner__title">海钓起航 渔乐无穷</text>
     </view>

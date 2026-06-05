@@ -2,6 +2,7 @@ var auth = require('../../utils/auth');
 
 var MENU_GUEST = [
   { id: 'booking', title: '海钓预约订单' },
+  { id: 'map-fav', title: '收藏的钓点' },
   { id: 'event', title: '赛事报名订单' },
   { id: 'weight', title: '称重记录' },
   { id: 'length', title: '长度测量记录' }
@@ -9,6 +10,7 @@ var MENU_GUEST = [
 
 var MENU_LOGGED = [
   { id: 'booking', title: '海钓预约订单' },
+  { id: 'map-fav', title: '收藏的钓点' },
   { id: 'event', title: '赛事报名订单' },
   { id: 'weight', title: '称重记录' }
 ];
@@ -115,6 +117,11 @@ Page({
     var id = e.currentTarget.dataset.id;
     if (id === 'booking') {
       wx.navigateTo({ url: '/pages/booking-orders/booking-orders' });
+      return;
+    }
+    if (id === 'map-fav') {
+      wx.setStorageSync('mapOpenMode', 'favorites');
+      wx.switchTab({ url: '/pages/map/map' });
       return;
     }
     wx.showToast({ title: '功能开发中', icon: 'none' });

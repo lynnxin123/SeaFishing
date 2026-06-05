@@ -1,7 +1,204 @@
-<view class="page-shell">
-  <view class="page-title">海钓地图</view>
-  <view class="placeholder-card">
-    <text class="placeholder-title">海域地图尚未接入</text>
-    <text class="placeholder-text">地图页面已配置，后续可接入微信地图组件或自定义海钓位置服务。</text>
+<view class="map-page">
+  <navigation-bar title="海钓地图" back="{{false}}" color="black" background="#ffffff"></navigation-bar>
+
+  <view class="hero-wrap">
+    <image class="hero-wrap__bg" src="{{heroBanner}}" mode="aspectFill" />
+    <view class="hero-wrap__mask"></view>
+    <view class="hero-wrap__fade"></view>
+    <view class="hero-wrap__bottom"></view>
+    <view class="hero-tagline">
+      <text class="hero-tagline__main">探索海域 · 精选钓点</text>
+      <text class="hero-tagline__sub">实时潮汐 · 智能推荐</text>
+    </view>
+
+    <view class="weather-card">
+      <view class="weather-card__head">
+        <view class="weather-card__title-wrap">
+          <view class="weather-card__accent"></view>
+          <text class="weather-card__title">今日海况</text>
+        </view>
+        <text class="weather-card__date">{{weather.date}} {{weather.week}}</text>
+      </view>
+
+      <view class="weather-main">
+        <view class="weather-left">
+          <view class="weather-hero">
+            <text class="weather-icon">{{weather.icon}}</text>
+            <view class="weather-hero__info">
+              <text class="weather-temp">{{weather.temp}}</text>
+              <text class="weather-desc">{{weather.desc}}</text>
+            </view>
+          </view>
+          <view class="weather-meta">
+            <view class="meta-chip">
+              <text class="meta-chip__label">风力</text>
+              <text class="meta-chip__value {{windBlocked ? 'meta-chip__value--warn' : ''}}">{{weather.wind}}</text>
+            </view>
+            <view class="meta-chip">
+              <text class="meta-chip__label">海况</text>
+              <text class="meta-chip__value {{windBlocked ? 'meta-chip__value--warn' : ''}}">{{weather.sea}}</text>
+            </view>
+          </view>
+          <view wx:if="{{windBlocked}}" class="wind-alert">
+            <text class="wind-alert__icon">⚠</text>
+            <text class="wind-alert__text">大风预警，远海/码头钓点暂不可预约</text>
+          </view>
+        </view>
+
+        <view class="weather-tide">
+          <view class="tide-head">潮汐</view>
+          <view class="tide-item" wx:for="{{tide}}" wx:key="label">
+            <view class="tide-item__top">
+              <text class="tide-label">{{item.label}}</text>
+              <text class="tide-time">{{item.time}}</text>
+            </view>
+            <text class="tide-height">{{item.height}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="map-body">
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <view class="filter-toggle" bindtap="onToggleFilterPanel">
+      <image class="filter-icon" src="/images/icon-filter.png" mode="aspectFit" />
+      <text>筛选</text>
+      <text class="filter-arrow">{{showFilterPanel ? '∧' : '∨'}}</text>
+    </view>
+    <scroll-view class="filter-tags" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="tag-row">
+        <view class="filter-tag {{seaRange === 'all' ? 'active' : ''}}" data-range="all" bindtap="onSeaRangeChange">全部海域</view>
+        <view class="filter-tag {{seaRange === 'near' ? 'active' : ''}}" data-range="near" bindtap="onSeaRangeChange">近海</view>
+        <view class="filter-tag {{seaRange === 'far' ? 'active' : ''}}" data-range="far" bindtap="onSeaRangeChange">远海</view>
+        <view class="filter-tag {{freeOnly ? 'active' : ''}}" bindtap="onFreeOnlyToggle">免费钓点</view>
+        <view class="filter-tag {{favoritesOnly ? 'active' : ''}}" wx:if="{{favoritesOnly}}">仅收藏</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="filter-panel" wx:if="{{showFilterPanel}}">
+    <view class="panel-title">鱼种筛选</view>
+    <view class="panel-chips">
+      <view
+        wx:for="{{fishOptionList}}"
+        wx:key="name"
+        class="chip {{item.active ? 'chip-active' : ''}}"
+        data-fish="{{item.name}}"
+        bindtap="onFishFilterTap"
+      >{{item.name}}</view>
+    </view>
+    <view class="panel-actions">
+      <view class="panel-btn panel-btn-ghost" bindtap="onResetFilter">重置</view>
+      <view class="panel-btn panel-btn-primary" bindtap="onToggleFilterPanel">完成</view>
+    </view>
+  </view>
+
+  <!-- 腾讯地图（真机需 webview 渲染 + 腾讯位置服务 key） -->
+  <view class="map-wrap">
+    <map
+      id="fishingMap"
+      class="fishing-map"
+      latitude="{{centerLat}}"
+      longitude="{{centerLng}}"
+      scale="{{scale}}"
+      markers="{{markers}}"
+      subkey="{{mapSubkey}}"
+      show-location
+      enable-zoom
+      enable-scroll
+      bindmarkertap="onMarkerTap"
+    >
+      <cover-view class="map-legend">
+        <cover-view class="legend-item"><cover-view class="dot dot-shore"></cover-view><cover-view class="legend-text">岸钓</cover-view></cover-view>
+        <cover-view class="legend-item"><cover-view class="dot dot-pier"></cover-view><cover-view class="legend-text">码头</cover-view></cover-view>
+        <cover-view class="legend-item"><cover-view class="dot dot-deep"></cover-view><cover-view class="legend-text">深海</cover-view></cover-view>
+        <cover-view class="legend-item"><cover-view class="dot dot-event"></cover-view><cover-view class="legend-text">赛事</cover-view></cover-view>
+      </cover-view>
+      <cover-view class="locate-btn" bindtap="onRelocate">
+        <cover-view class="locate-icon">◎</cover-view>
+        <cover-view>定位</cover-view>
+      </cover-view>
+    </map>
+  </view>
+
+  <!-- 距离排序列表（整页滚动，不再嵌套小 scroll-view） -->
+  <view class="spot-list-card">
+    <view class="list-title">附近钓场 · 由近到远</view>
+    <view class="spot-list">
+      <view
+        wx:for="{{sortedSpotList}}"
+        wx:key="id"
+        class="spot-list-item {{!item.bookable ? 'spot-list-item-disabled' : ''}}"
+        data-id="{{item.id}}"
+        bindtap="onListSpotTap"
+      >
+        <view class="spot-list-head">
+          <text class="spot-list-name">{{item.name}}</text>
+          <text class="spot-list-dist">{{item.distanceText}}</text>
+        </view>
+        <view class="spot-list-meta">
+          <text class="spot-type-tag type-{{item.type}}">{{item.typeLabel}}</text>
+          <text>{{item.priceNote}}</text>
+          <text wx:if="{{item.eventId}}" class="event-tag">赛事</text>
+        </view>
+      </view>
+      <view wx:if="{{sortedSpotList.length === 0}}" class="list-empty">暂无符合条件的钓点</view>
+    </view>
+  </view>
+  </view>
+
+  <!-- 钓点详情弹层 -->
+  <view class="spot-mask" wx:if="{{showSpotPanel}}" bindtap="onCloseSpotPanel"></view>
+  <view class="spot-panel" wx:if="{{showSpotPanel && selectedSpot}}" catchtap="stopTap">
+    <view class="spot-panel-head">
+      <view class="spot-panel-title-wrap">
+        <text class="spot-panel-title">{{selectedSpot.name}}</text>
+        <text wx:if="{{selectedSpot.eventId}}" class="spot-event-badge">赛事钓场</text>
+      </view>
+      <view class="spot-panel-actions">
+        <view class="icon-btn {{selectedSpot.favorited ? 'icon-btn-active' : ''}}" bindtap="onToggleFavorite">
+          {{selectedSpot.favorited ? '★' : '☆'}}
+        </view>
+        <view class="icon-btn" bindtap="onCloseSpotPanel">✕</view>
+      </view>
+    </view>
+
+    <view class="spot-info-row"><text class="label">类型</text><text>{{selectedSpot.typeLabel}}</text></view>
+    <view class="spot-info-row"><text class="label">水深</text><text>{{selectedSpot.depth}}</text></view>
+    <view class="spot-info-row"><text class="label">鱼种</text><text>{{selectedSpot.fishSpecies.join('、')}}</text></view>
+    <view class="spot-info-row"><text class="label">最佳月份</text><text>{{selectedSpot.bestMonths}}</text></view>
+    <view class="spot-info-row"><text class="label">费用</text><text>{{selectedSpot.priceNote}}</text></view>
+    <view class="spot-info-row" wx:if="{{hasLocation}}"><text class="label">距离</text><text>{{selectedSpot.distanceText}}</text></view>
+
+    <view wx:if="{{!selectedSpot.bookable}}" class="wind-block-tip">⚠ 当前大风海况，该钓点已置灰不可预约</view>
+
+    <view wx:if="{{selectedSpot.eventId}}" class="event-link-row" bindtap="onGoEvent">
+      <text class="event-link-text">🏆 {{selectedSpot.eventTitle}} · 点击报名</text>
+      <text class="event-link-arrow">›</text>
+    </view>
+
+    <view class="spot-ships" wx:if="{{selectedSpot.resolvedShips.length > 0}}">
+      <view class="ships-title">关联钓船</view>
+      <view
+        wx:for="{{selectedSpot.resolvedShips}}"
+        wx:key="shipKey"
+        class="ship-row {{selectedSpot.bookable ? '' : 'ship-row-disabled'}}"
+        data-ship-key="{{item.shipKey}}"
+        bindtap="onBookShipTap"
+      >
+        <image class="ship-thumb" src="{{item.images[0]}}" mode="aspectFill" />
+        <view class="ship-main">
+          <text class="ship-name">{{item.shipName}}</text>
+          <text class="ship-meta">船长 {{item.captain}} · 可载{{item.maxNum}}人</text>
+        </view>
+        <view class="ship-price">¥{{item.price}}<text class="price-suffix">起</text></view>
+      </view>
+    </view>
+
+    <view class="spot-foot">
+      <view class="nav-btn" bindtap="onNavigateSpot">一键导航</view>
+    </view>
   </view>
 </view>
