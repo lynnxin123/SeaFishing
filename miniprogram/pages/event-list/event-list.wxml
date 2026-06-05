@@ -1,0 +1,59 @@
+<view class="list-page">
+  <navigation-bar title="赛事报名" back="{{false}}" color="black" background="#ffffff"></navigation-bar>
+
+  <!-- 系列赛标题区 -->
+  <view class="list-hero">
+    <view class="list-hero__accent"></view>
+    <view class="list-hero__text">
+      <text class="list-hero__series">{{seriesTitle}}</text>
+      <text class="list-hero__desc">精选赛事 · 大图一览 · 即刻报名</text>
+    </view>
+  </view>
+
+  <view class="list-body">
+    <view
+      wx:for="{{competitionList}}"
+      wx:key="id"
+      class="comp-card"
+    >
+      <!-- 赛事大图 Banner -->
+      <view class="comp-card__banner" data-index="{{index}}" catchtap="onPreviewImage">
+        <image class="comp-card__hero" src="{{item.cover}}" mode="aspectFill" />
+        <view class="comp-card__banner-mask"></view>
+        <view class="comp-card__preview-tip">
+          <text class="comp-card__preview-icon">⤢</text>
+          <text>点击查看大图</text>
+        </view>
+        <view class="comp-card__status comp-card__status--{{item.status}}">{{item.statusText}}</view>
+      </view>
+
+      <!-- 卡片信息 -->
+      <view class="comp-card__body">
+        <text class="comp-card__en">{{item.enLabel}}</text>
+        <text class="comp-card__name">{{item.name}}</text>
+        <text class="comp-card__summary">{{item.summary}}</text>
+
+        <view class="comp-card__meta">
+          <view class="comp-card__meta-item">
+            <text class="comp-card__meta-label">地点</text>
+            <text class="comp-card__meta-value">{{item.location}}</text>
+          </view>
+          <view class="comp-card__meta-item">
+            <text class="comp-card__meta-label">时间</text>
+            <text class="comp-card__meta-value">{{item.time}}</text>
+          </view>
+          <view class="comp-card__meta-item">
+            <text class="comp-card__meta-label">报名费</text>
+            <text class="comp-card__meta-value">{{item.fee}}</text>
+          </view>
+        </view>
+
+        <view
+          class="comp-card__detail-btn"
+          data-id="{{item.id}}"
+          catchtap="onGoDetail"
+        >赛事详情</view>
+      </view>
+    </view>
+  </view>
+</view>

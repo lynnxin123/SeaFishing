@@ -8,6 +8,10 @@
     "pages/agreement/agreement",
     "pages/map/map",
     "pages/event/event",
+    "pages/event-list/event-list",
+    "pages/event-detail/event-detail",
+    "pages/event-register/event-register",
+    "pages/event-feature/event-feature",
     "pages/my/my",
     "pages/booking-orders/booking-orders",
     "pages/logs/logs"
@@ -52,7 +56,7 @@
         "selectedIconPath": "/images/tab-map-active.png"
       },
       {
-        "pagePath": "pages/event/event",
+        "pagePath": "pages/event-list/event-list",
         "text": "赛事报名",
         "iconPath": "/images/tab-event.png",
         "selectedIconPath": "/images/tab-event-active.png"

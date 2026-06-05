@@ -134,6 +134,18 @@ function consumePendingIndexReserve() {
   }
 }
 
+function goOrdersAfterSuccess() {
+  wx.showToast({
+    title: '预约成功',
+    icon: 'success',
+    duration: 1500,
+    mask: true
+  });
+  setTimeout(function () {
+    wx.navigateTo({ url: '/pages/booking-orders/booking-orders' });
+  }, 1500);
+}
+
 module.exports = {
   STORAGE_KEY: STORAGE_KEY,
   PENDING_BOOK_KEY: PENDING_BOOK_KEY,
@@ -142,6 +154,7 @@ module.exports = {
   getOrders: getOrders,
   saveOrders: saveOrders,
   addBookingOrder: addBookingOrder,
+  goOrdersAfterSuccess: goOrdersAfterSuccess,
   filterByTab: filterByTab,
   saveBookingContext: saveBookingContext,
   getBookingContext: getBookingContext,

@@ -1,23 +1,109 @@
-<view class="page-shell">
-  <view class="page-title">赛事详情</view>
-  <block wx:if="{{selectedEvent}}">
-    <view class="section-card">
-      <text class="section-title">{{selectedEvent.title}}</text>
-      <text class="section-text">地点：{{selectedEvent.location}}</text>
-      <text class="section-text">时间：{{selectedEvent.date}}</text>
-      <text class="section-text">该赛事为海钓挑战赛，预计报名人数众多，敬请期待更多详情。</text>
-    </view>
-  </block>
-  <block wx:else>
-    <view class="section-card">
-      <text class="section-title">赛事报名</text>
-      <text class="section-text">点击首页赛事卡片查看详情，或在这里浏览最新海钓赛事。</text>
-    </view>
-    <block wx:for="{{events}}" wx:key="id">
-      <view class="event-row">
-        <text class="event-row-title">{{item.title}}</text>
-        <text class="event-row-meta">{{item.date}}</text>
+<view class="event-page">
+  <navigation-bar title="赛事服务" back="{{false}}" color="black" background="#ffffff"></navigation-bar>
+
+  <!-- 已登录 / 未登录 顶部状态 -->
+  <view class="login-strip" wx:if="{{!isLoggedIn}}">
+    <text class="login-strip__text">登录后享受完整赛事服务</text>
+    <view class="login-strip__btn" bindtap="onOpenLoginModal">立即登录</view>
+  </view>
+  <view class="welcome-strip" wx:else>
+    <image wx:if="{{userInfo.avatarUrl}}" class="welcome-strip__avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+    <view wx:else class="welcome-strip__avatar welcome-strip__avatar--placeholder">{{welcomeInitial}}</view>
+    <text class="welcome-strip__text">欢迎，{{userInfo.nickName}}</text>
+  </view>
+
+  <view class="event-content">
+    <!-- 广告招商 Banner -->
+    <view class="ad-banner" bindtap="onCallAdPhone">
+      <image class="ad-banner__bg" src="{{adBanner.image}}" mode="aspectFill" />
+      <view class="ad-banner__mask"></view>
+      <view class="ad-banner__body">
+        <view class="ad-banner__left">
+          <text class="ad-banner__tag">广告招商</text>
+          <text class="ad-banner__title">{{adBanner.subtitle}}</text>
+        </view>
+        <view class="ad-banner__phone">
+          <text class="ad-banner__phone-icon">📞</text>
+          <text class="ad-banner__phone-num">{{adBanner.phone}}</text>
+        </view>
       </view>
-    </block>
-  </block>
+    </view>
+
+    <!-- 海钓赛事报名 -->
+    <view class="signup-banner" bindtap="onGoEventList">
+      <image class="signup-banner__bg" src="{{signupBanner.bgImage}}" mode="aspectFill" />
+      <view class="signup-banner__mask"></view>
+      <view class="signup-banner__text">
+        <text class="signup-banner__title">{{signupBanner.title}}</text>
+        <text class="signup-banner__sub">{{signupBanner.subtitle}}</text>
+      </view>
+      <view class="signup-banner__deco signup-banner__deco--fish">🐟</view>
+      <view class="signup-banner__deco signup-banner__deco--line"></view>
+    </view>
+
+    <!-- 功能卡片 2x2 -->
+    <view class="feature-grid">
+      <view
+        wx:for="{{featureCards}}"
+        wx:key="id"
+        class="feature-card feature-card--{{item.bg}}"
+        data-path="{{item.route}}"
+        data-need-login="{{item.needLogin}}"
+        bindtap="onFeatureTap"
+      >
+        <view class="feature-card__icon-wrap">
+          <image class="feature-card__icon" src="{{item.icon}}" mode="aspectFill" />
+        </view>
+        <text class="feature-card__title">{{item.title}}</text>
+        <text class="feature-card__sub">{{item.subtitle}}</text>
+      </view>
+    </view>
+
+    <!-- 第三行：举报 / 申诉 -->
+    <view class="utility-grid">
+      <view
+        wx:for="{{utilityCards}}"
+        wx:key="id"
+        class="utility-card"
+        data-path="{{item.route}}"
+        data-need-login="{{item.needLogin}}"
+        bindtap="onFeatureTap"
+      >
+        <view class="utility-card__icon utility-card__icon--{{item.iconType}}"></view>
+        <text class="utility-card__title">{{item.title}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 登录弹窗 -->
+  <view class="login-mask" wx:if="{{showLoginModal}}" bindtap="onCloseLoginModal"></view>
+  <view class="login-modal" wx:if="{{showLoginModal}}" catchtap="stopTap">
+    <view class="login-modal__head">
+      <text class="login-modal__title">登录赛事服务</text>
+      <view class="login-modal__close" bindtap="onCloseLoginModal">✕</view>
+    </view>
+    <text class="login-modal__desc">授权头像昵称与手机号后即可使用完整功能</text>
+
+    <view class="login-modal__agree" bindtap="onToggleAgree">
+      <view class="agree-check {{agreed ? 'agree-check--on' : ''}}">
+        <view class="agree-tick" wx:if="{{agreed}}"></view>
+      </view>
+      <text class="login-modal__agree-text">查看并同意</text>
+      <text class="login-modal__link" catchtap="onOpenAgreement" data-type="user">《用户协议》</text>
+      <text class="login-modal__agree-text">、</text>
+      <text class="login-modal__link" catchtap="onOpenAgreement" data-type="privacy">《隐私政策》</text>
+    </view>
+
+    <view wx:if="{{agreed}}" class="login-modal__btn-wrap">
+      <button
+        class="login-modal__btn"
+        open-type="getPhoneNumber"
+        bindtap="onLoginTap"
+        bindgetphonenumber="onGetPhoneNumber"
+      >微信授权登录</button>
+    </view>
+    <view wx:else class="login-modal__btn-wrap">
+      <view class="login-modal__btn" bindtap="onLoginTap">微信授权登录</view>
+    </view>
+  </view>
 </view>

@@ -157,40 +157,18 @@ Page({
   finishLogin() {
     auth.syncLoginState();
 
-    if (this._from === 'my') {
-      wx.switchTab({
-        url: '/pages/my/my',
-        fail: function () {
-          wx.navigateBack();
-        }
-      });
-      return;
-    }
-
-    if (this._from === 'reserve') {
-      wx.switchTab({
-        url: '/pages/index/index',
-        fail: function () {
-          wx.navigateBack();
-        }
-      });
-      return;
-    }
-
     if (this._redirect) {
       wx.redirectTo({
         url: this._redirect,
         fail: function () {
-          wx.navigateBack();
+          wx.switchTab({ url: '/pages/index/index' });
         }
       });
       return;
     }
 
-    wx.navigateBack({
-      fail: function () {
-        wx.switchTab({ url: '/pages/index/index' });
-      }
+    wx.switchTab({
+      url: '/pages/index/index'
     });
   }
 });

@@ -1,18 +1,9 @@
 var auth = require('../../utils/auth');
 
-var MENU_GUEST = [
+var MENU_LIST = [
   { id: 'booking', title: '海钓预约订单' },
   { id: 'map-fav', title: '收藏的钓点' },
-  { id: 'event', title: '赛事报名订单' },
-  { id: 'weight', title: '称重记录' },
-  { id: 'length', title: '长度测量记录' }
-];
-
-var MENU_LOGGED = [
-  { id: 'booking', title: '海钓预约订单' },
-  { id: 'map-fav', title: '收藏的钓点' },
-  { id: 'event', title: '赛事报名订单' },
-  { id: 'weight', title: '称重记录' }
+  { id: 'event', title: '赛事报名订单' }
 ];
 
 Page({
@@ -20,7 +11,7 @@ Page({
     isLoggedIn: false,
     showUnverified: false,
     userInfo: auth.GUEST_PROFILE,
-    menuList: MENU_GUEST
+    menuList: MENU_LIST
   },
 
   onLoad() {
@@ -46,9 +37,9 @@ Page({
 
     this.setData({
       isLoggedIn: loggedIn,
-      showUnverified: loggedIn && !userInfo.verified,
+      showUnverified: loggedIn && !auth.isVerified(),
       userInfo: userInfo,
-      menuList: loggedIn ? MENU_LOGGED : MENU_GUEST
+      menuList: MENU_LIST
     });
 
     auth.syncLoginState();
@@ -59,7 +50,7 @@ Page({
       isLoggedIn: false,
       showUnverified: false,
       userInfo: auth.GUEST_PROFILE,
-      menuList: MENU_GUEST
+      menuList: MENU_LIST
     });
     auth.syncLoginState();
   },
@@ -68,9 +59,9 @@ Page({
     var userInfo = profile || auth.getUserProfile() || auth.DEFAULT_PROFILE;
     this.setData({
       isLoggedIn: true,
-      showUnverified: !userInfo.verified,
+      showUnverified: !auth.isVerified(),
       userInfo: userInfo,
-      menuList: MENU_LOGGED
+      menuList: MENU_LIST
     });
     auth.syncLoginState();
   },

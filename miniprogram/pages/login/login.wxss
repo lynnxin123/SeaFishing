@@ -22,17 +22,52 @@ page {
   right: 0;
   bottom: 0;
   z-index: 0;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
+  background: #0a2d4f;
 }
 
+.login-bg-img-wrap {
+  position: relative;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+/* widthFix 等比缩放、顶部对齐，不拉伸 */
 .login-bg {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 110%;
-  height: 110%;
-  transform: translate(-50%, -50%);
+  width: 100%;
+  height: auto;
   display: block;
+  vertical-align: top;
+}
+
+/* 图片底缘渐隐，与下方海色填充衔接 */
+.login-bg-edge-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 180rpx;
+  background: linear-gradient(
+    180deg,
+    rgba(10, 45, 79, 0) 0%,
+    rgba(10, 42, 74, 0.45) 50%,
+    #0a2d4f 100%
+  );
+  pointer-events: none;
+}
+
+/* 图片下方用海面深蓝填充，与图片底部融为一体 */
+.login-bg-fill {
+  flex: 1;
+  min-height: 0;
+  background: linear-gradient(
+    180deg,
+    #0a2d4f 0%,
+    #0a2545 40%,
+    #0a1e3d 100%
+  );
 }
 
 .login-overlay {
@@ -44,10 +79,11 @@ page {
   z-index: 1;
   background: linear-gradient(
     180deg,
-    rgba(8, 24, 48, 0.12) 0%,
-    rgba(8, 24, 48, 0.08) 45%,
-    rgba(8, 24, 48, 0.42) 100%
+    rgba(8, 24, 48, 0) 0%,
+    rgba(8, 24, 48, 0) 55%,
+    rgba(8, 24, 48, 0.38) 100%
   );
+  pointer-events: none;
 }
 
 .login-back {
@@ -88,21 +124,32 @@ page {
   box-sizing: border-box;
 }
 
-.brand-name {
-  font-size: 56rpx;
-  font-weight: 800;
-  letter-spacing: 6rpx;
-  color: #e8c56a;
-  text-shadow: 0 4rpx 12rpx rgba(180, 140, 40, 0.55), 0 0 2rpx #fff5d0;
-  line-height: 72rpx;
+.brand-name-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24rpx;
+  width: 100%;
 }
 
-.brand-subtitle {
-  margin-top: 20rpx;
-  font-size: 26rpx;
-  color: #d4b872;
-  letter-spacing: 4rpx;
-  line-height: 36rpx;
+.brand-name-line {
+  flex: 1;
+  max-width: 120rpx;
+  height: 2rpx;
+  background: linear-gradient(90deg, transparent, rgba(245, 227, 176, 0.85), transparent);
+}
+
+.brand-name {
+  flex-shrink: 0;
+  font-size: 60rpx;
+  font-weight: 700;
+  letter-spacing: 10rpx;
+  color: #f8e8c4;
+  line-height: 1.2;
+  text-shadow:
+    0 1rpx 0 rgba(255, 255, 255, 0.5),
+    0 3rpx 12rpx rgba(0, 0, 0, 0.35),
+    0 0 32rpx rgba(212, 175, 55, 0.4);
 }
 
 /* 底部按钮区 */
@@ -134,12 +181,13 @@ page {
 
 .btn-outline {
   font-weight: 600;
-  color: #e8c56a;
-  background: rgba(10, 30, 60, 0.25);
-  border: 2rpx solid #d4b872;
+  color: #f0dfa0;
+  background: rgba(10, 30, 60, 0.22);
+  border: 2rpx solid rgba(212, 184, 114, 0.9);
   border-radius: 999rpx;
   padding: 0;
   margin: 0;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.15);
 }
 
 button.btn-outline {
@@ -152,18 +200,31 @@ button.btn-outline {
 }
 
 .btn-gold {
-  font-weight: 700;
-  color: #1a2a4a;
+  font-weight: 600;
+  letter-spacing: 4rpx;
+  color: #1a2d4f;
   border-radius: 999rpx;
+  border: 1rpx solid rgba(255, 240, 200, 0.7);
   background: linear-gradient(
     90deg,
     #9a7b2f 0%,
-    #c9a227 28%,
-    #f0dfa0 52%,
-    #d4b872 78%,
-    #b8922e 100%
+    #c4a030 20%,
+    #f2e2a8 46%,
+    #e0c878 68%,
+    #c9a227 86%,
+    #a67c1a 100%
   );
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 8rpx 22rpx rgba(0, 0, 0, 0.22),
+    inset 0 2rpx 4rpx rgba(255, 255, 255, 0.5),
+    inset 0 -1rpx 2rpx rgba(140, 100, 20, 0.2);
+}
+
+.btn-gold:active {
+  opacity: 0.92;
+  box-shadow:
+    0 4rpx 14rpx rgba(0, 0, 0, 0.18),
+    inset 0 2rpx 4rpx rgba(255, 255, 255, 0.4);
 }
 
 .agreement-row {
@@ -225,4 +286,3 @@ button.btn-outline {
 .agreement-plain {
   color: rgba(255, 255, 255, 0.92);
 }
-

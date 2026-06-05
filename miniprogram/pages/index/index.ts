@@ -76,29 +76,7 @@ Page({
         price: 1280
       }
     ],
-    eventCards: [
-      {
-        id: 1,
-        banner: '/images/competition1.jpg',
-        title: '大鱼挑战赛',
-        location: '长山群岛',
-        date: '2026.07.12-07.14'
-      },
-      {
-        id: 2,
-        banner: '/images/competition2.jpg',
-        title: '金秋海钓赛',
-        location: '大连海域',
-        date: '2026.09.18-09.20'
-      },
-      {
-        id: 3,
-        banner: '/images/competition3.jpg',
-        title: '冠军对决赛',
-        location: '烟台海岸',
-        date: '2026.08.05-08.07'
-      }
-    ],
+    eventCards: [] as Array<{ id: number; banner: string; title: string; location: string; date: string }>,
     showReservePopup: false,
     reserveBoat: {
       name: '',
@@ -107,7 +85,8 @@ Page({
   },
 
   onLoad() {
-    // 这里可以后续补充接口请求
+    const eventService = require('../../utils/eventService')
+    this.setData({ eventCards: eventService.getIndexEventCards() })
   },
 
   onShow() {
@@ -184,13 +163,14 @@ Page({
       wharf: '待定',
       status: 'pending_accept'
     })
-    wx.showToast({ title: '预约成功', icon: 'success' })
     this.closeReserve()
+    bookingOrders.goOrdersAfterSuccess()
   },
 
   onEventTap(event: any) {
     const id = Number(event.currentTarget.dataset.id)
-    wx.navigateTo({ url: `/pages/event/event?id=${id}` })
+    const eventService = require('../../utils/eventService')
+    eventService.openEventDetail(id)
   },
 
   openBooking() {

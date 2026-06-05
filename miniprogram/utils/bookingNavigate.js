@@ -20,11 +20,11 @@ function goBookShip(ship, extraContext) {
   });
 }
 
+var eventService = require('./eventService');
+
 function goEventPage(eventId) {
   if (!eventId) return;
-  wx.navigateTo({
-    url: '/pages/event/event?id=' + eventId
-  });
+  eventService.openEventDetail(eventId);
 }
 
 module.exports = {

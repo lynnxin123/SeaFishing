@@ -19,7 +19,7 @@ const DEFAULT_SHIP = {
   facilities: [],
   captainName: '郭巍',
   captainGender: '男',
-  captainAvatar: '/images/captain1.jpg',
+  captainAvatar: '/images/captain.jpg',
   sailingYears: '2',
   sailCount: 0,
   score: 0,
@@ -196,10 +196,7 @@ Page({
           people: people,
           status: 'pending_accept'
         });
-        wx.showToast({ title: '预约成功', icon: 'success' });
-        setTimeout(function () {
-          wx.navigateTo({ url: '/pages/booking-orders/booking-orders' });
-        }, 600);
+        bookingOrders.goOrdersAfterSuccess();
       }
     });
   },

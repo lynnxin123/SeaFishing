@@ -1,6 +1,8 @@
 {
+  "usingComponents": {
+    "navigation-bar": "/components/navigation-bar/navigation-bar"
+  },
   "navigationStyle": "custom",
-  "backgroundColor": "#0a1e3d",
   "renderer": "webview",
   "componentFramework": "exparser"
 }

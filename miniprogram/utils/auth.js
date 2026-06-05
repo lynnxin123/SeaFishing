@@ -1,6 +1,9 @@
 var LOGIN_KEY = 'isLoggedIn';
 var USER_KEY = 'userProfile';
 
+/** 测试阶段跳过身份证实名，正式上线前改为 false */
+var SKIP_ID_VERIFY = true;
+
 var DEFAULT_PROFILE = {
   nickName: '微信用户',
   avatarUrl: '',
@@ -53,7 +56,7 @@ function saveUserSession(userInfo, phoneCode) {
     nickName: (userInfo && userInfo.nickName) || prev.nickName || DEFAULT_PROFILE.nickName,
     avatarUrl: (userInfo && userInfo.avatarUrl) || prev.avatarUrl || '',
     phoneCode: phoneCode || prev.phoneCode || '',
-    verified: prev.verified === true,
+    verified: SKIP_ID_VERIFY ? true : prev.verified === true,
     levelName: prev.levelName || DEFAULT_PROFILE.levelName,
     medals: prev.medals != null ? prev.medals : DEFAULT_PROFILE.medals,
     points: prev.points != null ? prev.points : DEFAULT_PROFILE.points,
@@ -95,6 +98,7 @@ function goLogin(options) {
 }
 
 function isVerified() {
+  if (SKIP_ID_VERIFY) return isLoggedIn();
   var profile = getUserProfile();
   return !!(profile && profile.verified === true);
 }
@@ -129,12 +133,15 @@ function promptVerify(options) {
   options = options || {};
   wx.showModal({
     title: '提示',
-    content: '用户没有实名认证，请认证',
+    content: options.content || '参赛报名需先完成实名认证',
     confirmText: '去认证',
     cancelText: '取消',
     success: function (res) {
       if (res.confirm) {
-        goVerify({ from: options.from || '' });
+        goVerify({
+          from: options.from || '',
+          redirect: options.redirect || ''
+        });
       }
     }
   });

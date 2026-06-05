@@ -27,7 +27,7 @@
       <view class="form-label"><text class="required">*</text>证件号</view>
       <input
         class="form-input"
-        placeholder="请输入证件号"
+        placeholder="请输入18位身份证号码"
         value="{{idNumber}}"
         bindinput="onIdInput"
         maxlength="18"

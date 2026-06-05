@@ -1,6 +1,10 @@
 <view class="login-page">
   <view class="login-bg-wrap">
-    <image class="login-bg" src="{{bgImage}}" mode="aspectFill"></image>
+    <view class="login-bg-img-wrap">
+      <image class="login-bg" src="{{bgImage}}" mode="widthFix" show-menu-by-longpress="{{false}}"></image>
+      <view class="login-bg-edge-fade"></view>
+    </view>
+    <view class="login-bg-fill"></view>
   </view>
   <view class="login-overlay"></view>
 
@@ -10,8 +14,11 @@
 
   <view class="login-body">
     <view class="brand-block">
-      <view class="brand-name">海发海钓</view>
-      <view class="brand-subtitle">- 海钓小程序 -</view>
+      <view class="brand-name-wrap">
+        <view class="brand-name-line"></view>
+        <view class="brand-name">海发海钓</view>
+        <view class="brand-name-line"></view>
+      </view>
     </view>
 
     <view class="login-footer">

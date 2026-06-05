@@ -1,3 +1,5 @@
+const BOAT_CYCLE_IMGS = ['/images/boat1.jpg', '/images/boat2.jpg', '/images/boat3.jpg'];
+
 Page({
   data: {
     heroBanner: '/images/boat-hero.png',
@@ -76,15 +78,11 @@ Page({
 
   onLoad() {
     const today = this.formatDate(new Date());
-    // 生成模拟数据：50条，随机分配船与船长图片
-    const captainImgs = ['/images/captain1.jpg', '/images/captain2.jpg', '/images/captain3.jpg'];
-    const boatImgs = ['/images/boat1.jpg', '/images/boat2.jpg', '/images/boat3.jpg', '/images/boat4.jpg'];
+    // 生成模拟数据：50条
     const wharfs = ['全部码头', '大连码头', '旅顺码头'];
     const facilitiesPool = [['卫生间'], ['棋牌室'], ['茶水室'], ['休息室'], ['卫生间','休息室']];
     const allShipsGen = [];
     for (let i = 1; i <= 50; i++) {
-      const boatImg = boatImgs[Math.floor(Math.random() * boatImgs.length)];
-      const captainImg = captainImgs[Math.floor(Math.random() * captainImgs.length)];
       const shipLen = Math.random() > 0.2 ? (5 + Math.random() * 8).toFixed(2) : null;
       const shipWid = shipLen ? (1.8 + Math.random() * 1.2).toFixed(2) : null;
       const score = +(4 + Math.random()).toFixed(1);
@@ -101,9 +99,9 @@ Page({
         score,
         sailCount,
         captain: ['王雪徕','郭巍','李海涛','周海滨','阿峰','婷婷','大海'][Math.floor(Math.random()*7)],
-        captainAvatar: captainImg,
+        captainAvatar: '/images/captain.jpg',
         price,
-        images: [boatImg],
+        images: [BOAT_CYCLE_IMGS[0]],
         wharf: wharfs[Math.floor(Math.random() * wharfs.length)],
         facilities: facilitiesPool[Math.floor(Math.random() * facilitiesPool.length)],
         experience: [2, 3, 5, 8, 10, 12, 15, 20, 25, 30][Math.floor(Math.random() * 10)],
@@ -242,6 +240,12 @@ Page({
     });
   },
 
+  withCycledBoatImages(ships) {
+    return ships.map((ship, index) => Object.assign({}, ship, {
+      images: [BOAT_CYCLE_IMGS[index % BOAT_CYCLE_IMGS.length]]
+    }));
+  },
+
   decorateShip(ship, search) {
     const displayWharf = search.wharf !== '全部码头' ? search.wharf : ship.wharf;
     return Object.assign({}, ship, {
@@ -327,7 +331,7 @@ Page({
       });
     }
 
-    this.setData({ filteredShips: sorted, page: 1 }, () => {
+    this.setData({ filteredShips: this.withCycledBoatImages(sorted), page: 1 }, () => {
       this.updateVisibleShips();
     });
   },
