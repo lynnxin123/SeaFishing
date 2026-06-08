@@ -47,11 +47,9 @@ Page({
   data: {
     heroBanner: '/images/boat-hero.png',
     mapSubkey: tencentMap.MAP_SUBKEY || '',
-    mapMode: 'standard',
     mapSetting: {
       enableZoom: true,
       enableScroll: true,
-      enableSatellite: false,
       showLocation: true
     },
     centerLat: DALIAN_CENTER.latitude,
@@ -336,15 +334,6 @@ Page({
       self.applyFilters();
       wx.showToast({ title: '已定位到当前位置', icon: 'none' });
     });
-  },
-
-  onMapModeChange: function (e) {
-    var mode = e.currentTarget.dataset.mode;
-    if (!mode || mode === this.data.mapMode) return;
-    var mapSetting = Object.assign({}, this.data.mapSetting, {
-      enableSatellite: mode === 'satellite'
-    });
-    this.setData({ mapMode: mode, mapSetting: mapSetting });
   },
 
   onBookShipTap: function (e) {

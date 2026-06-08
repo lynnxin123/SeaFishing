@@ -95,7 +95,6 @@
     </view>
   </view>
 
-  <!-- 默认矢量底图，可切换卫星视图 -->
   <view class="map-wrap">
     <map
       id="fishingMap"
@@ -114,18 +113,6 @@
         <cover-view class="legend-item"><cover-view class="dot dot-pier"></cover-view><cover-view class="legend-text">码头</cover-view></cover-view>
         <cover-view class="legend-item"><cover-view class="dot dot-deep"></cover-view><cover-view class="legend-text">深海</cover-view></cover-view>
         <cover-view class="legend-item"><cover-view class="dot dot-event"></cover-view><cover-view class="legend-text">赛事</cover-view></cover-view>
-      </cover-view>
-      <cover-view class="map-mode-bar">
-        <cover-view
-          class="map-mode-item {{mapMode === 'standard' ? 'map-mode-on' : ''}}"
-          bindtap="onMapModeChange"
-          data-mode="standard"
-        >标准</cover-view>
-        <cover-view
-          class="map-mode-item {{mapMode === 'satellite' ? 'map-mode-on' : ''}}"
-          bindtap="onMapModeChange"
-          data-mode="satellite"
-        >卫星</cover-view>
       </cover-view>
       <cover-view class="locate-btn" bindtap="onRelocate">
         <cover-view class="locate-icon">◎</cover-view>
