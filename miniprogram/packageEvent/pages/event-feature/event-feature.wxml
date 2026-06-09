@@ -1,0 +1,76 @@
+<view class="feature-page">
+  <navigation-bar title="{{pageTitle}}" back="{{true}}" color="black" background="#ffffff"></navigation-bar>
+  <view class="feature-body">
+    <view class="feature-card">
+      <text class="feature-card__title">{{pageTitle}}</text>
+      <text class="feature-card__desc">{{pageDesc}}</text>
+    </view>
+
+    <feature-panel-skeleton
+      wx:if="{{loading}}"
+      count="{{5}}"
+      variant="{{skeletonVariant}}"
+    />
+
+    <view wx:elif="{{loadError}}" class="feature-card feature-card--error">
+      <text class="feature-card__desc feature-card__desc--error">{{loadError}}</text>
+      <view class="feature-retry" bindtap="loadFeatureData">重新加载</view>
+    </view>
+
+    <view wx:elif="{{rankingList.length}}" class="feature-card">
+      <text class="feature-card__subtitle">赛事排行榜</text>
+      <view class="rank-row" wx:for="{{rankingList}}" wx:key="rank">
+        <text class="rank-no">#{{item.rank}}</text>
+        <text class="rank-name">{{item.name}}</text>
+        <text class="rank-score">{{item.score}}分</text>
+      </view>
+    </view>
+
+    <view wx:elif="{{scoreStats}}" class="feature-card">
+      <text class="feature-card__subtitle">我的成绩</text>
+      <view class="stat-row">
+        <text class="stat-label">当前排名</text>
+        <text class="stat-value">{{scoreStats.rank || '未上榜'}}</text>
+      </view>
+      <view class="stat-row">
+        <text class="stat-label">累计得分</text>
+        <text class="stat-value">{{scoreStats.totalScore || 0}}</text>
+      </view>
+      <view class="stat-row">
+        <text class="stat-label">测量次数</text>
+        <text class="stat-value">{{scoreStats.measureCount || 0}}</text>
+      </view>
+      <view class="stat-row">
+        <text class="stat-label">称重次数</text>
+        <text class="stat-value">{{scoreStats.weightCount || 0}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{pageTitle === '长度测量'}}" class="feature-card">
+      <text class="feature-card__subtitle">录入测量</text>
+      <input class="feature-input" type="digit" placeholder="渔获长度(cm)" value="{{inputValue}}" bindinput="onInputValue" />
+      <input class="feature-input" placeholder="鱼种（可选）" value="{{inputSpecies}}" bindinput="onInputSpecies" />
+      <view class="feature-submit" bindtap="onSubmitMeasure">提交测量</view>
+    </view>
+
+    <view wx:if="{{pageTitle === '比赛称重'}}" class="feature-card">
+      <text class="feature-card__subtitle">录入称重</text>
+      <input class="feature-input" type="digit" placeholder="渔获重量(kg)" value="{{inputValue}}" bindinput="onInputValue" />
+      <view class="feature-submit" bindtap="onSubmitWeight">提交称重</view>
+    </view>
+
+    <view wx:if="{{showForm}}" class="feature-card">
+      <text class="feature-card__subtitle">提交说明</text>
+      <textarea
+        class="feature-textarea"
+        placeholder="请描述具体情况"
+        maxlength="500"
+        value="{{formRemark}}"
+        bindinput="onRemarkInput"
+      />
+      <view class="feature-submit" bindtap="onSubmitForm">提交</view>
+    </view>
+
+    <view class="feature-tip">需先报名对应赛事后，测量/称重数据才会计入成绩。</view>
+  </view>
+</view>

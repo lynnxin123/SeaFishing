@@ -1,0 +1,48 @@
+<view class="orders-page">
+  <navigation-bar title="赛事报名订单" back="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+
+  <view class="orders-body">
+    <view wx:if="{{loading}}" class="skeleton-wrap">
+      <order-list-skeleton count="{{3}}" />
+    </view>
+
+    <view wx:elif="{{loadError}}" class="empty-wrap">
+      <text class="empty-icon" aria-hidden="true">⚠</text>
+      <text class="empty-text">{{loadError}}</text>
+      <text class="empty-hint">请检查网络后重试</text>
+      <view class="retry-btn" bindtap="loadList">重新加载</view>
+    </view>
+
+    <view wx:elif="{{isEmpty}}" class="empty-wrap">
+      <text class="empty-text">暂无报名记录</text>
+      <text class="empty-hint">去赛事页报名后，记录会显示在这里</text>
+    </view>
+
+    <scroll-view wx:else class="order-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="order-list">
+        <view
+          wx:for="{{list}}"
+          wx:key="id"
+          class="order-card"
+          data-id="{{item.competitionId}}"
+          bindtap="onItemTap"
+        >
+          <image lazy-load class="order-cover" src="{{item.competitionCover}}" mode="aspectFill" />
+          <view class="order-main">
+            <view class="order-title-row">
+              <text class="order-ship">{{item.competitionName}}</text>
+              <text class="order-status">{{item.statusText}}</text>
+            </view>
+            <text class="order-meta">比赛地点：{{item.competitionLocation}}</text>
+            <text class="order-meta">比赛时间：{{item.competitionTime}}</text>
+            <text class="order-meta">报名人：{{item.realName}} · {{item.people}}人</text>
+            <text class="order-meta">手机：{{item.phone}}</text>
+            <view class="order-foot">
+              <text class="order-no">报名时间 {{item.createdAtText}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "海发海钓"
+  "navigationBarTitleText": "海发海钓",
+  "usingComponents": {
+    "index-card-skeleton": "/components/index-card-skeleton/index-card-skeleton"
+  }
 }

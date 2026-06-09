@@ -1,0 +1,11 @@
+<view class="comp-detail-skeleton">
+  <view class="comp-detail-skeleton__hero skeleton-shimmer"></view>
+  <view class="comp-detail-skeleton__body">
+    <view class="comp-detail-skeleton__line comp-detail-skeleton__line--en skeleton-shimmer"></view>
+    <view class="comp-detail-skeleton__line comp-detail-skeleton__line--title skeleton-shimmer"></view>
+    <view class="comp-detail-skeleton__line skeleton-shimmer"></view>
+    <view class="comp-detail-skeleton__line skeleton-shimmer"></view>
+    <view class="comp-detail-skeleton__line comp-detail-skeleton__line--short skeleton-shimmer"></view>
+    <view class="comp-detail-skeleton__btn skeleton-shimmer"></view>
+  </view>
+</view>

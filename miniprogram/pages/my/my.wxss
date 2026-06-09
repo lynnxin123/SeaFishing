@@ -254,6 +254,54 @@ page {
   line-height: 1;
 }
 
+.checkin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32rpx 16rpx;
+}
+
+.checkin-btn {
+  padding: 12rpx 28rpx;
+  border-radius: 999rpx;
+  background: #0c6dff;
+  color: #ffffff;
+  font-size: 24rpx;
+}
+
+.reward-link {
+  font-size: 24rpx;
+  color: #0c6dff;
+}
+
+.reward-panel {
+  margin: 0 24rpx 16rpx;
+  padding: 20rpx 24rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 16rpx;
+}
+
+.reward-empty {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.reward-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #f0f0f0;
+  font-size: 24rpx;
+}
+
+.reward-remark {
+  color: #333333;
+}
+
+.reward-delta {
+  color: #0c6dff;
+}
+
 /* 退出登录 */
 .logout-wrap {
   margin: 48rpx 24rpx 0;

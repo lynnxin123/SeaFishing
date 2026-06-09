@@ -13,7 +13,7 @@ function goBookShip(ship, extraContext) {
     keyword: extraContext.keyword || ship.shipName || ''
   });
   wx.navigateTo({
-    url: '/pages/ship-detail/ship-detail',
+    url: '/packageBoat/pages/ship-detail/ship-detail',
     success: function (res) {
       res.eventChannel.emit('acceptShipData', { ship: ship });
     }

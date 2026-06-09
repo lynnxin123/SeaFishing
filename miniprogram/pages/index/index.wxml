@@ -3,7 +3,7 @@
     <swiper class="hero-swiper" indicator-dots autoplay circular interval="3800" duration="500">
       <block wx:for="{{bannerImages}}" wx:key="url">
         <swiper-item>
-          <image class="hero-image" src="{{item.url}}" mode="aspectFill"></image>
+          <image lazy-load class="hero-image" src="{{item.url}}" mode="aspectFill"></image>
         </swiper-item>
       </block>
     </swiper>
@@ -57,7 +57,7 @@
               <text class="tide-height">{{tide[1].height}}</text>
             </view>
           </view>
-          <view class="tide-note">下次潮汐数据以实时接口为准</view>
+          <view class="tide-note">海况潮汐随出行日期更新</view>
         </view>
       </view>
     </view>
@@ -89,43 +89,62 @@
           </view>
         </view>
 
-        <block wx:for="{{boats}}" wx:key="id">
-          <view class="boat-card">
-            <image class="boat-image" src="{{item.image}}" mode="aspectFill"></image>
-            <view class="boat-content">
-              <view class="boat-head">
-                <text class="boat-name">{{item.name}}</text>
-                <text class="boat-price">¥{{item.price}}/次</text>
-              </view>
-              <view class="boat-info">船长：{{item.captain}}</view>
-              <view class="boat-info">载客上限：{{item.capacity}} 人</view>
-              <view class="boat-foot">
-                <text class="boat-tag">优质推荐</text>
-                <view class="reserve-btn" data-id="{{item.id}}" bindtap="openReserve">立即预约</view>
+        <view wx:if="{{boatsLoading}}" class="index-load-wrap">
+          <index-card-skeleton count="{{3}}" />
+        </view>
+
+        <block wx:else>
+          <block wx:for="{{boats}}" wx:key="id">
+            <view class="boat-card" data-id="{{item.id}}" bindtap="onBoatTap">
+              <image lazy-load class="boat-image" src="{{item.image}}" mode="aspectFill"></image>
+              <view class="boat-content">
+                <view class="boat-head">
+                  <text class="boat-name">{{item.name}}</text>
+                  <text class="boat-price">¥{{item.price}}/次</text>
+                </view>
+                <view class="boat-info">船长：{{item.captain}}</view>
+                <view class="boat-info">载客上限：{{item.capacity}} 人</view>
+                <view class="boat-foot">
+                  <text class="boat-tag">优质推荐</text>
+                  <view class="reserve-btn" data-id="{{item.id}}" catchtap="openReserve">立即预约</view>
+                </view>
               </view>
             </view>
-          </view>
+          </block>
         </block>
       </block>
 
       <block wx:elif="{{activeTab == 1}}">
-        <block wx:for="{{eventCards}}" wx:key="id">
-          <view class="event-card" data-id="{{item.id}}" bindtap="onEventTap">
-            <image class="event-image" src="{{item.banner}}" mode="aspectFill"></image>
-            <view class="event-content">
-              <text class="event-name">{{item.title}}</text>
-              <view class="event-meta">
-                <text>{{item.location}}</text>
-                <text>{{item.date}}</text>
+        <view wx:if="{{eventsLoading}}" class="index-load-wrap">
+          <index-card-skeleton count="{{2}}" />
+        </view>
+
+        <view wx:elif="{{eventsError}}" class="index-error-card">
+          <text class="index-error-text">{{eventsError}}</text>
+          <view class="index-retry-btn" bindtap="loadEventCards">重新加载</view>
+        </view>
+
+        <view wx:elif="{{eventCards.length === 0}}" class="index-empty-card">
+          <text class="index-empty-text">暂无赛事活动</text>
+        </view>
+
+        <block wx:else>
+          <block wx:for="{{eventCards}}" wx:key="id">
+            <view class="event-card" data-id="{{item.id}}" bindtap="onEventTap">
+              <image lazy-load class="event-image" src="{{item.banner}}" mode="aspectFill"></image>
+              <view class="event-content">
+                <text class="event-name">{{item.title}}</text>
+                <view class="event-meta">
+                  <text>{{item.location}}</text>
+                  <text>{{item.date}}</text>
+                </view>
               </view>
             </view>
-          </view>
+          </block>
         </block>
       </block>
     </view>
   </view>
-
-  <view class="spacer"></view>
 </view>
 <block wx:if="{{showReservePopup}}">
   <view class="popup-mask" bindtap="closeReserve"></view>

@@ -1,0 +1,11 @@
+<view class="order-skeleton-list">
+  <view wx:for="{{count}}" wx:key="*this" class="order-skeleton-card">
+    <view class="order-skeleton-cover skeleton-shimmer"></view>
+    <view class="order-skeleton-main">
+      <view class="order-skeleton-line order-skeleton-line--title skeleton-shimmer"></view>
+      <view class="order-skeleton-line skeleton-shimmer"></view>
+      <view class="order-skeleton-line skeleton-shimmer"></view>
+      <view class="order-skeleton-line order-skeleton-line--short skeleton-shimmer"></view>
+    </view>
+  </view>
+</view>

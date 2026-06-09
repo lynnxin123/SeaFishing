@@ -2,20 +2,54 @@
   "pages": [
     "pages/index/index",
     "pages/boat/boat",
-    "pages/ship-detail/ship-detail",
-    "pages/login/login",
-    "pages/verify/verify",
-    "pages/agreement/agreement",
     "pages/map/map",
-    "pages/event/event",
     "pages/event-list/event-list",
-    "pages/event-detail/event-detail",
-    "pages/event-register/event-register",
-    "pages/event-feature/event-feature",
-    "pages/my/my",
-    "pages/booking-orders/booking-orders",
-    "pages/logs/logs"
+    "pages/my/my"
   ],
+  "subPackages": [
+    {
+      "root": "packageOrder",
+      "pages": [
+        "pages/booking-orders/booking-orders",
+        "pages/event-orders/event-orders",
+        "pages/map-favorites/map-favorites",
+        "pages/boat-favorites/boat-favorites"
+      ]
+    },
+    {
+      "root": "packageEvent",
+      "pages": [
+        "pages/event-detail/event-detail",
+        "pages/event-register/event-register",
+        "pages/event-feature/event-feature"
+      ]
+    },
+    {
+      "root": "packageUser",
+      "pages": [
+        "pages/login/login",
+        "pages/verify/verify",
+        "pages/agreement/agreement",
+        "pages/messages/messages"
+      ]
+    },
+    {
+      "root": "packageBoat",
+      "pages": [
+        "pages/ship-detail/ship-detail"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/boat/boat": {
+      "network": "all",
+      "packages": ["packageBoat"]
+    },
+    "pages/my/my": {
+      "network": "wifi",
+      "packages": ["packageOrder"]
+    }
+  },
   "permission": {
     "scope.userLocation": {
       "desc": "用于展示附近钓场、按距离排序并导航到码头/钓点"

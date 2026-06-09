@@ -1,0 +1,42 @@
+<view class="messages-page">
+  <navigation-bar title="消息中心" back="{{true}}" color="#141d3a" background="#ffffff"></navigation-bar>
+
+  <view class="messages-body">
+    <view wx:if="{{loading}}" class="messages-loading">
+      <view wx:for="{{[1,2,3]}}" wx:key="*this" class="message-skeleton">
+        <view class="message-skeleton__title skeleton-shimmer"></view>
+        <view class="message-skeleton__line skeleton-shimmer"></view>
+        <view class="message-skeleton__time skeleton-shimmer"></view>
+      </view>
+    </view>
+
+    <view wx:elif="{{loadError}}" class="messages-empty">
+      <text class="messages-empty__icon" aria-hidden="true">⚠</text>
+      <text class="messages-empty__text">{{loadError}}</text>
+      <view class="messages-retry" bindtap="loadMessages">重新加载</view>
+    </view>
+
+    <view wx:elif="{{messages.length === 0}}" class="messages-empty">
+      <text class="messages-empty__text">暂无消息</text>
+    </view>
+
+    <scroll-view wx:else class="messages-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view
+        wx:for="{{messages}}"
+        wx:key="id"
+        class="message-card {{item.read ? '' : 'message-card--unread'}}"
+        data-id="{{item.id}}"
+        data-title="{{item.title}}"
+        data-content="{{item.content}}"
+        bindtap="onItemTap"
+      >
+        <view class="message-card__head">
+          <text class="message-card__title">{{item.title}}</text>
+          <view wx:if="{{!item.read}}" class="message-card__dot"></view>
+        </view>
+        <text class="message-card__content">{{item.summary}}</text>
+        <text class="message-card__time">{{item.time}}</text>
+      </view>
+    </scroll-view>
+  </view>
+</view>

@@ -1,22 +1,42 @@
 /** 赛事服务：静态数据与跳转路径，后续可替换为接口返回 */
 
-var FEATURE_ROUTES = {
-  measure: '/pages/event-feature/event-feature?type=measure',
-  weight: '/pages/event-feature/event-feature?type=weight',
-  ranking: '/pages/event-feature/event-feature?type=ranking',
-  score: '/pages/event-feature/event-feature?type=score',
-  report: '/pages/event-feature/event-feature?type=report',
-  appeal: '/pages/event-feature/event-feature?type=appeal'
-};
+function buildFeatureRoute(type, competitionId) {
+  competitionId = competitionId || '1';
+  return (
+    '/packageEvent/pages/event-feature/event-feature?type=' +
+    encodeURIComponent(type) +
+    '&competitionId=' +
+    encodeURIComponent(String(competitionId))
+  );
+}
+
+function pickActiveCompetitionId(list) {
+  if (!Array.isArray(list) || !list.length) {
+    return '1';
+  }
+  var open = list.find(function (item) {
+    return item && item.status !== 'ended';
+  });
+  return String((open || list[0]).id || '1');
+}
+
+function getToolCards(competitionId) {
+  competitionId = competitionId || '1';
+  return FEATURE_CARDS.concat(UTILITY_CARDS).map(function (card) {
+    return Object.assign({}, card, {
+      route: buildFeatureRoute(card.id, competitionId)
+    });
+  });
+}
 
 var EVENT_LIST_PATH = '/pages/event-list/event-list';
-var EVENT_DETAIL_PATH = '/pages/event-detail/event-detail';
-var EVENT_REGISTER_PATH = '/pages/event-register/event-register';
+var EVENT_DETAIL_PATH = '/packageEvent/pages/event-detail/event-detail';
+var EVENT_REGISTER_PATH = '/packageEvent/pages/event-register/event-register';
 var LIST_PAGE_TITLE = '赛事报名';
 var LIST_SERIES_TITLE = '海发海岛海钓系列赛';
 
 var AD_BANNER = {
-  image: '/images/competition1.jpg',
+  image: '/images/competition2.jpg',
   title: '广告招商',
   subtitle: '虚位以待',
   phone: '13604117570'
@@ -35,7 +55,7 @@ var FEATURE_CARDS = [
     subtitle: '量之有度 渔获皆准',
     icon: '/images/competition1.jpg',
     bg: 'blue',
-    route: FEATURE_ROUTES.measure,
+    route: buildFeatureRoute('measure', '1'),
     needLogin: true
   },
   {
@@ -44,7 +64,7 @@ var FEATURE_CARDS = [
     subtitle: '一"称"定音 胜负揭晓',
     icon: '/images/competition2.jpg',
     bg: 'cream',
-    route: FEATURE_ROUTES.weight,
+    route: buildFeatureRoute('weight', '1'),
     needLogin: true
   },
   {
@@ -53,7 +73,7 @@ var FEATURE_CARDS = [
     subtitle: '群星闪耀 巅峰荣耀',
     icon: '/images/competition3.jpg',
     bg: 'lavender',
-    route: FEATURE_ROUTES.ranking,
+    route: buildFeatureRoute('ranking', '1'),
     needLogin: true
   },
   {
@@ -62,7 +82,7 @@ var FEATURE_CARDS = [
     subtitle: '不负韶华 只争朝夕',
     icon: '/images/competition2.jpg',
     bg: 'blue',
-    route: FEATURE_ROUTES.score,
+    route: buildFeatureRoute('score', '1'),
     needLogin: true
   }
 ];
@@ -72,14 +92,14 @@ var UTILITY_CARDS = [
     id: 'report',
     title: '积分赛举报',
     iconType: 'gavel',
-    route: FEATURE_ROUTES.report,
+    route: buildFeatureRoute('report', '1'),
     needLogin: true
   },
   {
     id: 'appeal',
     title: '积分赛申诉',
     iconType: 'doc',
-    route: FEATURE_ROUTES.appeal,
+    route: buildFeatureRoute('appeal', '1'),
     needLogin: true
   }
 ];
@@ -157,16 +177,178 @@ function openEventListTab(options) {
 
 function getCompetitionById(id) {
   var key = String(id);
-  for (var i = 0; i < COMPETITION_LIST.length; i++) {
-    if (String(COMPETITION_LIST[i].id) === key) {
-      return COMPETITION_LIST[i];
+  var list = getCompetitionList();
+  for (var i = 0; i < list.length; i++) {
+    if (String(list[i].id) === key) {
+      return list[i];
     }
   }
   return null;
 }
 
-function getIndexEventCards() {
-  return COMPETITION_LIST.map(function (item) {
+var _cachedCompetitions = null;
+var _cachedCompetitionsKey = '';
+var _fetchCompetitionPromises = {};
+
+function normalizeCover(cover) {
+  if (!cover) return '/images/competition1.jpg';
+  return cover;
+}
+
+function normalizeCompetition(item) {
+  if (!item || typeof item !== 'object') return item;
+  return Object.assign({}, item, {
+    cover: normalizeCover(item.cover)
+  });
+}
+
+function normalizeCompetitionList(list) {
+  if (!Array.isArray(list)) return [];
+  return list.map(normalizeCompetition);
+}
+
+function getCompetitionList() {
+  return _cachedCompetitions || COMPETITION_LIST;
+}
+
+function sliceCompetitionList(list, limit) {
+  if (!limit || limit <= 0) {
+    return list;
+  }
+  return list.slice(0, limit);
+}
+
+function fetchCompetitionList(options) {
+  options = options || {};
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    _cachedCompetitions = normalizeCompetitionList(COMPETITION_LIST.slice());
+    _cachedCompetitionsKey = 'all';
+    return Promise.resolve(sliceCompetitionList(_cachedCompetitions, options.limit));
+  }
+  var request = require('./request');
+  var cacheKey = 'all';
+  if (_cachedCompetitions && _cachedCompetitionsKey === cacheKey) {
+    return Promise.resolve(sliceCompetitionList(_cachedCompetitions, options.limit));
+  }
+  if (_fetchCompetitionPromises[cacheKey]) {
+    return _fetchCompetitionPromises[cacheKey].then(function (list) {
+      return sliceCompetitionList(list, options.limit);
+    });
+  }
+  _fetchCompetitionPromises[cacheKey] = request
+    .get('/competitions', { limit: 50 })
+    .then(function (list) {
+      _cachedCompetitions = normalizeCompetitionList(
+        Array.isArray(list) ? list : COMPETITION_LIST.slice()
+      );
+      _cachedCompetitionsKey = cacheKey;
+      return _cachedCompetitions;
+    })
+    .catch(function () {
+      if (options.strict) {
+        return Promise.reject(new Error('加载失败，请重试'));
+      }
+      _cachedCompetitions = normalizeCompetitionList(COMPETITION_LIST.slice());
+      _cachedCompetitionsKey = cacheKey;
+      return _cachedCompetitions;
+    })
+    .finally(function () {
+      delete _fetchCompetitionPromises[cacheKey];
+    });
+  return _fetchCompetitionPromises[cacheKey].then(function (list) {
+    return sliceCompetitionList(list, options.limit);
+  });
+}
+
+function fetchCompetitionById(id, options) {
+  options = options || {};
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    return Promise.resolve(getCompetitionById(id));
+  }
+  var request = require('./request');
+  return request
+    .get('/competitions/' + id)
+    .then(function (item) {
+      if (!item) return getCompetitionById(id);
+      if (_cachedCompetitions) {
+        var idx = _cachedCompetitions.findIndex(function (c) {
+          return String(c.id) === String(id);
+        });
+        if (idx >= 0) _cachedCompetitions[idx] = item;
+      }
+      return item;
+    })
+    .catch(function () {
+      if (options.strict) {
+        return Promise.reject(new Error('加载失败，请重试'));
+      }
+      return getCompetitionById(id);
+    });
+}
+
+function registerCompetition(id, form) {
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    return Promise.resolve({ ok: true });
+  }
+  var request = require('./request');
+  return request.post('/competitions/' + id + '/register', {
+    realName: form.realName,
+    phone: form.phone,
+    people: Number(form.people),
+    emergencyContact: form.emergencyContact || '',
+    remark: form.remark || ''
+  });
+}
+
+function fetchMyRegistrations(options) {
+  options = options || {};
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.resolve([]);
+  }
+  var request = require('./request');
+  return request
+    .get('/competitions/my/registrations', {
+      page: options.page || 1,
+      pageSize: options.pageSize || 20
+    })
+    .then(function (res) {
+      if (Array.isArray(res)) {
+        return {
+          items: res,
+          total: res.length,
+          page: 1,
+          pageSize: res.length,
+          hasMore: false
+        };
+      }
+      var items = (res && res.items) || [];
+      var page = (res && res.page) || options.page || 1;
+      var pageSize = (res && res.pageSize) || options.pageSize || 20;
+      var total = res && res.total != null ? res.total : items.length;
+      return {
+        items: items,
+        total: total,
+        page: page,
+        pageSize: pageSize,
+        hasMore: page * pageSize < total
+      };
+    })
+    .catch(function () {
+      return { items: [], total: 0, page: 1, pageSize: 20, hasMore: false };
+    });
+}
+
+function getIndexEventCards(limit) {
+  var list = getCompetitionList();
+  if (limit && limit > 0) {
+    list = list.slice(0, limit);
+  }
+  return list.map(function (item) {
     return {
       id: Number(item.id),
       banner: item.cover,
@@ -193,8 +375,48 @@ var FEATURE_TITLES = {
   appeal: '积分赛申诉'
 };
 
+var FEATURE_DESC = {
+  measure: '按赛事规则测量渔获长度，数据将用于成绩统计与排名（正式比赛期间由裁判核验后生效）。',
+  weight: '比赛称重环节记录单尾/总重数据，支持现场录入与成绩公示。',
+  ranking: '查看当前赛事积分榜与组别排名，了解实时战况。',
+  score: '查询个人参赛成绩、有效渔获记录与历史场次表现。',
+  report: '对积分赛中的违规行为进行举报，组委会将在赛后核实处理。',
+  appeal: '对成绩、判罚等有异议时可提交申诉，请附说明与佐证材料。'
+};
+
+var _cachedBanners = null;
+var _bannersCacheTs = 0;
+var BANNERS_CACHE_TTL = 5 * 60 * 1000;
+
+function fetchBanners() {
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    return Promise.resolve(null);
+  }
+  var now = Date.now();
+  if (_cachedBanners && now - _bannersCacheTs < BANNERS_CACHE_TTL) {
+    return Promise.resolve(_cachedBanners);
+  }
+  var request = require('./request');
+  return request
+    .get('/banners')
+    .then(function (list) {
+      if (Array.isArray(list) && list.length) {
+        _cachedBanners = list;
+        _bannersCacheTs = Date.now();
+        return _cachedBanners;
+      }
+      return null;
+    })
+    .catch(function () {
+      return _cachedBanners;
+    });
+}
+
 module.exports = {
-  FEATURE_ROUTES: FEATURE_ROUTES,
+  buildFeatureRoute: buildFeatureRoute,
+  pickActiveCompetitionId: pickActiveCompetitionId,
+  getToolCards: getToolCards,
   EVENT_LIST_PATH: EVENT_LIST_PATH,
   EVENT_DETAIL_PATH: EVENT_DETAIL_PATH,
   EVENT_REGISTER_PATH: EVENT_REGISTER_PATH,
@@ -206,6 +428,14 @@ module.exports = {
   UTILITY_CARDS: UTILITY_CARDS,
   COMPETITION_LIST: COMPETITION_LIST,
   FEATURE_TITLES: FEATURE_TITLES,
+  FEATURE_DESC: FEATURE_DESC,
+  EVENT_TOOL_CARDS: getToolCards('1'),
+  getCompetitionList: getCompetitionList,
+  fetchCompetitionList: fetchCompetitionList,
+  fetchCompetitionById: fetchCompetitionById,
+  registerCompetition: registerCompetition,
+  fetchMyRegistrations: fetchMyRegistrations,
+  fetchBanners: fetchBanners,
   getCompetitionById: getCompetitionById,
   getIndexEventCards: getIndexEventCards,
   openEventListTab: openEventListTab,

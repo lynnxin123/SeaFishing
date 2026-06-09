@@ -11,14 +11,27 @@
   </view>
 
   <view class="list-body">
+    <view wx:if="{{loading}}" class="list-skeleton-wrap">
+      <competition-list-skeleton count="{{2}}" />
+    </view>
+
+    <view wx:elif="{{loadError}}" class="list-error-card">
+      <text class="list-error-icon" aria-hidden="true">⚠</text>
+      <text class="list-error-text">{{loadError}}</text>
+      <text class="list-error-hint">请检查网络后重试</text>
+      <view class="list-retry-btn" bindtap="loadCompetitions">重新加载</view>
+    </view>
+
+    <block wx:else>
     <view
       wx:for="{{competitionList}}"
       wx:key="id"
-      class="comp-card"
+      class="comp-card {{highlightId == item.id ? 'comp-card--highlight' : ''}}"
+      id="comp-{{item.id}}"
     >
       <!-- 赛事大图 Banner -->
       <view class="comp-card__banner" data-index="{{index}}" catchtap="onPreviewImage">
-        <image class="comp-card__hero" src="{{item.cover}}" mode="aspectFill" />
+        <image class="comp-card__hero" src="{{item.cover}}" mode="aspectFill" data-index="{{index}}" binderror="onCoverError" />
         <view class="comp-card__banner-mask"></view>
         <view class="comp-card__preview-tip">
           <text class="comp-card__preview-icon">⤢</text>
@@ -53,6 +66,24 @@
           data-id="{{item.id}}"
           catchtap="onGoDetail"
         >赛事详情</view>
+      </view>
+    </view>
+    </block>
+
+    <view class="tool-section">
+      <text class="tool-section__title">赛事工具</text>
+      <view class="tool-grid">
+        <view
+          wx:for="{{toolCards}}"
+          wx:key="id"
+          class="tool-item"
+          data-route="{{item.route}}"
+          data-need-login="{{item.needLogin}}"
+          bindtap="onToolTap"
+        >
+          <text class="tool-item__title">{{item.title}}</text>
+          <text class="tool-item__sub">{{item.subtitle || ''}}</text>
+        </view>
       </view>
     </view>
   </view>

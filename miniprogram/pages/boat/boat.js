@@ -1,4 +1,5 @@
 const BOAT_CYCLE_IMGS = ['/images/boat1.jpg', '/images/boat2.jpg', '/images/boat3.jpg'];
+const featuredBoats = require('../../utils/featuredBoats');
 
 Page({
   data: {
@@ -12,11 +13,14 @@ Page({
     },
     wharfOptions: ['全部码头', '大连码头', '旅顺码头'],
     hasSearched: false,
-    allShips: [],
-    filteredShips: [],
+    listTotal: 0,
     visibleShips: [],
     page: 1,
     pageSize: 10,
+    remotePageSize: 20,
+    listError: '',
+    loadingShips: false,
+    loadingMore: false,
     currentSort: 'comprehensive',
     sortOptions: [
       { label: '综合排序', value: 'comprehensive' },
@@ -78,43 +82,261 @@ Page({
 
   onLoad() {
     const today = this.formatDate(new Date());
-    // 生成模拟数据：50条
-    const wharfs = ['全部码头', '大连码头', '旅顺码头'];
-    const facilitiesPool = [['卫生间'], ['棋牌室'], ['茶水室'], ['休息室'], ['卫生间','休息室']];
-    const allShipsGen = [];
-    for (let i = 1; i <= 50; i++) {
-      const shipLen = Math.random() > 0.2 ? (5 + Math.random() * 8).toFixed(2) : null;
-      const shipWid = shipLen ? (1.8 + Math.random() * 1.2).toFixed(2) : null;
-      const score = +(4 + Math.random()).toFixed(1);
-      const sailCount = Math.floor(Math.random() * 10);
-      const maxNum = Math.floor(2 + Math.random() * 12);
-      const price = +(10 + Math.random() * 990).toFixed(2);
-      const idx = i;
-      allShipsGen.push({
-        shipName: `辽长渔休${10000 + idx}`,
-        boatId: String(10000 + idx),
-        maxNum,
-        shipLen: shipLen ? Number(shipLen) : null,
-        shipWid: shipWid ? Number(shipWid) : null,
-        score,
-        sailCount,
-        captain: ['王雪徕','郭巍','李海涛','周海滨','阿峰','婷婷','大海'][Math.floor(Math.random()*7)],
-        captainAvatar: '/images/captain.jpg',
-        price,
-        images: [BOAT_CYCLE_IMGS[0]],
-        wharf: wharfs[Math.floor(Math.random() * wharfs.length)],
-        facilities: facilitiesPool[Math.floor(Math.random() * facilitiesPool.length)],
-        experience: [2, 3, 5, 8, 10, 12, 15, 20, 25, 30][Math.floor(Math.random() * 10)],
-        contact: '138' + (10000000 + Math.floor(Math.random()*90000000)),
-        builtYear: 2000 + Math.floor(Math.random()*26),
-        description: '本船经验丰富，适合海钓、休闲使用。'
-      });
+    this.setData({ 'search.date': today });
+  },
+
+  onShow() {
+    if (this._keepResultsOnShow) {
+      this._keepResultsOnShow = false;
+      return;
     }
+    if (this.data.hasSearched && (this._filteredShips || []).length > 0) {
+      return;
+    }
+    this.resetListState();
+  },
+
+  resetListState() {
+    this._remotePage = 1;
+    this._remoteHasMore = true;
+    this._loadingMore = false;
+    this._allShips = [];
+    this._filteredShips = [];
     this.setData({
-      'search.date': today,
-      allShips: allShipsGen,
-      filteredShips: allShipsGen
+      hasSearched: false,
+      listTotal: 0,
+      visibleShips: [],
+      listError: '',
+      loadingShips: false,
+      loadingMore: false,
+      page: 1
     });
+  },
+
+  usesRemoteList() {
+    const api = require('../../config/api');
+    return api.USE_API;
+  },
+
+  buildRemoteQuery(page) {
+    const { search, currentSort, filters, remotePageSize } = this.data;
+    const params = { page: page || 1, pageSize: remotePageSize };
+    if (search.wharf && search.wharf !== '全部码头') {
+      params.wharf = search.wharf;
+    }
+    const keyword = (search.keyword || '').trim();
+    if (keyword) {
+      params.keyword = keyword;
+    }
+    if (currentSort === 'priceAsc' || currentSort === 'priceDesc') {
+      params.sort = currentSort;
+    }
+    if (filters.score !== 'all') {
+      params.minScore = Number(filters.score);
+    }
+    if (filters.length !== 'all') {
+      params.minLength = Number(filters.length);
+    }
+    if (filters.experience !== 'all') {
+      params.minExperience = Number(filters.experience);
+    }
+    if (filters.facilities && filters.facilities.length > 0) {
+      params.facilities = filters.facilities.join(',');
+    }
+    const people = Number(search.people);
+    if (search.people && !Number.isNaN(people) && people > 0) {
+      params.people = people;
+    }
+    return params;
+  },
+
+  mergeShipPages(existing, incoming) {
+    const list = (existing || []).slice();
+    const ids = {};
+    list.forEach((ship) => {
+      if (ship && ship.boatId) ids[ship.boatId] = true;
+    });
+    (incoming || []).forEach((ship) => {
+      if (!ship || !ship.boatId || ids[ship.boatId]) return;
+      ids[ship.boatId] = true;
+      list.push(ship);
+    });
+    return list;
+  },
+
+  loadOfflineShips() {
+    const items = featuredBoats.FEATURED_BOATS.map((ship) => this.normalizeShip(ship));
+    this._remoteHasMore = false;
+    this.finishShipLoad(items);
+  },
+
+  loadShips() {
+    this.fetchRemoteShips({ reset: true });
+  },
+
+  fetchRemoteShips(options) {
+    options = options || { reset: true };
+    const reset = options.reset !== false;
+    const allowed =
+      options.fromSearch ||
+      options.fromRetry ||
+      options.fromRefine ||
+      this.data.hasSearched ||
+      !reset;
+    if (!allowed) {
+      return;
+    }
+    const api = require('../../config/api');
+
+    if (!api.USE_API) {
+      if (!options.fromSearch && !options.fromRetry && !options.fromRefine) {
+        return;
+      }
+      this.loadOfflineShips();
+      return;
+    }
+    if (this._loadingMore) return;
+
+    if (reset) {
+      this._remotePage = 1;
+      this._remoteHasMore = true;
+    } else {
+      if (!this._remoteHasMore) return;
+      this._remotePage = (this._remotePage || 1) + 1;
+    }
+
+    const request = require('../../utils/request');
+    const page = this._remotePage;
+    const silent = !reset && page > 1;
+
+    this._loadingMore = true;
+    if (silent) {
+      this.setData({ loadingMore: true });
+    } else {
+      this.setData({ loadingShips: true, listError: '' });
+      wx.showLoading({ title: reset ? '加载船只' : '加载更多' });
+    }
+
+    request
+      .get('/boats', this.buildRemoteQuery(page))
+      .then((res) => {
+        const batch = (res.items || []).map((ship) => this.normalizeShip(ship));
+        const total = res.total != null ? res.total : batch.length;
+        this._remoteHasMore = page * this.data.remotePageSize < total;
+
+        if (reset) {
+          if (!batch.length) {
+            this._allShips = [];
+            this._filteredShips = [];
+            this._remoteTotal = 0;
+            this.setData({
+              listTotal: 0,
+              visibleShips: [],
+              hasSearched: true,
+              listError: '暂无船只',
+              loadingShips: false
+            });
+            return;
+          }
+          this._remoteTotal = total;
+          this.finishShipLoad(batch, { remoteTotal: total });
+          return;
+        }
+
+        const prevVisible = (this.data.visibleShips || []).length;
+        const allShips = this.mergeShipPages(this._allShips, batch);
+        this._remoteTotal = total;
+        this.finishShipLoad(allShips, { append: true, prevVisible: prevVisible, remoteTotal: total });
+      })
+      .catch(() => {
+        if (reset) {
+          this._allShips = [];
+          this._filteredShips = [];
+          this.setData({
+            listTotal: 0,
+            visibleShips: [],
+            hasSearched: true,
+            listError: '加载失败，请重试',
+            loadingShips: false
+          });
+          wx.showToast({ title: '加载失败，请重试', icon: 'none' });
+        } else {
+          this._remotePage = Math.max(1, this._remotePage - 1);
+          wx.showToast({ title: '加载更多失败', icon: 'none' });
+        }
+      })
+      .finally(() => {
+        this._loadingMore = false;
+        if (silent) {
+          this.setData({ loadingMore: false });
+        } else {
+          wx.hideLoading();
+          this.setData({ loadingShips: false });
+        }
+      });
+  },
+
+  onRetryLoad() {
+    this.fetchRemoteShips({ reset: true, fromRetry: true });
+  },
+
+  normalizeShip(ship) {
+    return {
+      shipName: ship.shipName,
+      boatId: ship.boatId,
+      maxNum: ship.maxNum,
+      shipLen: ship.shipLen,
+      shipWid: ship.shipWid,
+      score: ship.score,
+      sailCount: ship.sailCount,
+      experience: ship.experience,
+      captain: ship.captain,
+      captainAvatar: ship.captainAvatar || '/images/captain.jpg',
+      price: ship.price,
+      images: ship.images || [ship.coverImage || '/images/boat1.jpg'],
+      wharf: ship.wharf,
+      displayWharf: ship.displayWharf || ship.wharf,
+      facilities: ship.facilities || [],
+      contact: ship.contact || '',
+      builtYear: ship.builtYear,
+      description: ship.description || '本船经验丰富，适合海钓、休闲使用。'
+    };
+  },
+
+  finishShipLoad(allShips, options) {
+    options = options || {};
+    this._appendAfterFilter = options.append ? (options.prevVisible || 0) : 0;
+    this._allShips = allShips || [];
+
+    if (this.usesRemoteList()) {
+      const search = this.data.search || {};
+      const decorated = this._allShips.map((ship) => this.decorateShip(ship, search));
+      this._filteredShips = this.withCycledBoatImages(decorated);
+      const listTotal =
+        options.remoteTotal != null ? options.remoteTotal : this._filteredShips.length;
+      this.setData(
+        {
+          hasSearched: true,
+          listError: '',
+          listTotal: listTotal,
+          page: 1
+        },
+        () => {
+          this.updateVisibleShips();
+        }
+      );
+      return;
+    }
+
+    this.setData(
+      {
+        hasSearched: true,
+        listError: ''
+      },
+      () => {
+        this.applyFilters();
+      }
+    );
   },
 
   formatDate(date) {
@@ -137,17 +359,34 @@ Page({
   },
 
   onPeopleInput(e) {
-    this.setData({ 'search.people': e.detail.value });
+    this._peopleDraft = e.detail.value;
+  },
+
+  onPeopleBlur() {
+    if (this._peopleDraft == null) return;
+    this.setData({ 'search.people': this._peopleDraft });
   },
 
   onKeywordInput(e) {
-    this.setData({ 'search.keyword': e.detail.value });
+    this._keywordDraft = e.detail.value;
+  },
+
+  onKeywordBlur() {
+    if (this._keywordDraft == null) return;
+    this.setData({ 'search.keyword': this._keywordDraft });
   },
 
   onSearch() {
-    this.setData({ hasSearched: true, page: 1 }, () => {
-      this.applyFilters();
-    });
+    const keyword =
+      this._keywordDraft != null ? this._keywordDraft : (this.data.search.keyword || '');
+    this.data.search.keyword = keyword;
+    this.setData({ 'search.keyword': keyword });
+    const search = this.data.search || {};
+    if (!search.date) {
+      wx.showToast({ title: '请选择预约日期', icon: 'none' });
+      return;
+    }
+    this.fetchRemoteShips({ reset: true, fromSearch: true });
   },
 
   toggleSortPopup() {
@@ -180,11 +419,8 @@ Page({
       currentSortText: option ? option.label : '综合排序',
       showSortPopup: false
     }, () => {
-      if (!this.data.hasSearched) {
-        wx.showToast({ title: '请先搜索', icon: 'none' });
-        return;
-      }
-      this.applySort();
+      if (!this.data.hasSearched) return;
+      this.fetchRemoteShips({ reset: true, fromRefine: true });
     });
   },
 
@@ -241,9 +477,14 @@ Page({
   },
 
   withCycledBoatImages(ships) {
-    return ships.map((ship, index) => Object.assign({}, ship, {
-      images: [BOAT_CYCLE_IMGS[index % BOAT_CYCLE_IMGS.length]]
-    }));
+    return ships.map((ship, index) => {
+      if (ship.images && ship.images.length) {
+        return ship;
+      }
+      return Object.assign({}, ship, {
+        images: [BOAT_CYCLE_IMGS[index % BOAT_CYCLE_IMGS.length]]
+      });
+    });
   },
 
   decorateShip(ship, search) {
@@ -257,20 +498,22 @@ Page({
   },
 
   onFilterConfirm() {
-    if (!this.data.hasSearched) {
-      wx.showToast({ title: '请先搜索', icon: 'none' });
-      return;
-    }
     this.setData({
       filters: this.cloneFilters(this.data.filtersDraft),
       showFilterPopup: false
     }, () => {
-      this.applyFilters();
+      if (!this.data.hasSearched) return;
+      this.fetchRemoteShips({ reset: true, fromRefine: true });
     });
   },
 
   applyFilters() {
-    const { allShips, search, filters } = this.data;
+    if (this.usesRemoteList() && this.data.hasSearched) {
+      return;
+    }
+
+    const allShips = this._allShips || [];
+    const { search, filters } = this.data;
     const keyword = (search.keyword || '').trim().toLowerCase();
     const people = Number(search.people);
 
@@ -287,11 +530,6 @@ Page({
             captain.indexOf(keyword) !== -1 ||
             boatId.indexOf(keyword) !== -1;
           if (!matched) return false;
-        }
-        if (filters.facilities.length > 0) {
-          const facilities = ship.facilities || [];
-          const hasAll = filters.facilities.every(value => facilities.indexOf(value) !== -1);
-          if (!hasAll) return false;
         }
         if (filters.length !== 'all') {
           const minLen = Number(filters.length);
@@ -310,14 +548,19 @@ Page({
       })
       .map(ship => this.decorateShip(ship, search));
 
-    this.setData({ filteredShips: filtered, page: 1 }, () => {
+    this._filteredShips = filtered;
+    this.setData({ listTotal: filtered.length, page: 1 }, () => {
       this.applySort();
     });
   },
 
   applySort() {
-    const { currentSort, filteredShips } = this.data;
-    const sorted = filteredShips.slice();
+    if (this.usesRemoteList() && this.data.hasSearched) {
+      return;
+    }
+
+    const { currentSort } = this.data;
+    const sorted = (this._filteredShips || []).slice();
 
     if (currentSort === 'priceAsc') {
       sorted.sort((a, b) => Number(a.price) - Number(b.price));
@@ -331,35 +574,56 @@ Page({
       });
     }
 
-    this.setData({ filteredShips: this.withCycledBoatImages(sorted), page: 1 }, () => {
-      this.updateVisibleShips();
+    const self = this;
+    this._filteredShips = this.withCycledBoatImages(sorted);
+    this.setData({ listTotal: this._filteredShips.length, page: 1 }, () => {
+      if (self._appendAfterFilter) {
+        const { pageSize } = self.data;
+        const needPage = Math.ceil(self._appendAfterFilter / pageSize) + 1;
+        const maxPage = Math.max(1, Math.ceil(self._filteredShips.length / pageSize));
+        self._appendAfterFilter = 0;
+        self.setData({ page: Math.min(needPage, maxPage) }, () => {
+          self.updateVisibleShips();
+        });
+        return;
+      }
+      self.updateVisibleShips();
     });
   },
 
   updateVisibleShips() {
-    const { filteredShips, page, pageSize } = this.data;
+    const filteredShips = this._filteredShips || [];
+    const { page, pageSize } = this.data;
     const end = Math.min(filteredShips.length, page * pageSize);
     const visible = filteredShips.slice(0, end);
-    this.setData({ visibleShips: visible });
+    const listTotal = this.usesRemoteList()
+      ? (this._remoteTotal != null ? this._remoteTotal : filteredShips.length)
+      : filteredShips.length;
+    this.setData({ visibleShips: visible, listTotal: listTotal });
   },
 
   onReachBottom() {
-    // Called when user scrolls to bottom: 加载更多
-    const { visibleShips, filteredShips, page, pageSize } = this.data;
-    if (visibleShips.length >= filteredShips.length) {
-      wx.showToast({ title: '没有更多了', icon: 'none' });
+    const { visibleShips, page, pageSize } = this.data;
+    const filteredShips = this._filteredShips || [];
+    if (visibleShips.length < filteredShips.length) {
+      this.setData({ page: page + 1 }, () => {
+        this.updateVisibleShips();
+      });
       return;
     }
-    const nextPage = page + 1;
-    this.setData({ page: nextPage }, () => {
-      this.updateVisibleShips();
-    });
+    const api = require('../../config/api');
+    if (api.USE_API && this._remoteHasMore) {
+      this.fetchRemoteShips({ reset: false });
+      return;
+    }
+    wx.showToast({ title: '没有更多了', icon: 'none' });
   },
 
   onShipTap(e) {
     const index = e.currentTarget.dataset.index;
     const ship = this.data.visibleShips[index];
     if (!ship) return;
+    this._keepResultsOnShow = true;
     const bookingOrders = require('../../utils/bookingOrders');
     const search = this.data.search || {};
     bookingOrders.saveBookingContext({
@@ -369,7 +633,7 @@ Page({
       keyword: search.keyword
     });
     wx.navigateTo({
-      url: '/pages/ship-detail/ship-detail',
+      url: '/packageBoat/pages/ship-detail/ship-detail',
       success(res) {
         res.eventChannel.emit('acceptShipData', { ship });
       }

@@ -50,6 +50,19 @@
       </view>
     </view>
 
+    <view class="checkin-row" wx:if="{{isLoggedIn}}">
+      <view class="checkin-btn" bindtap="onCheckIn">每日签到 +5积分</view>
+      <view class="reward-link" bindtap="onToggleRewards">{{showRewards ? '收起' : '积分明细'}}</view>
+    </view>
+
+    <view class="reward-panel" wx:if="{{isLoggedIn && showRewards}}">
+      <view wx:if="{{rewardLogs.length === 0}}" class="reward-empty">暂无积分记录</view>
+      <view class="reward-item" wx:for="{{rewardLogs}}" wx:key="id">
+        <text class="reward-remark">{{item.remark || item.type}}</text>
+        <text class="reward-delta" wx:if="{{item.points > 0}}">+{{item.points}}积分</text>
+      </view>
+    </view>
+
     <view class="stats-row">
       <view class="stat-item">
         <image class="stat-icon-img" src="/images/my-icon-medal.png" mode="aspectFit"></image>

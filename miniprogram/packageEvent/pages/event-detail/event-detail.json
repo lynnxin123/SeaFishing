@@ -1,0 +1,9 @@
+{
+  "usingComponents": {
+    "navigation-bar": "/components/navigation-bar/navigation-bar",
+    "competition-detail-skeleton": "/components/competition-detail-skeleton/competition-detail-skeleton"
+  },
+  "navigationStyle": "custom",
+  "renderer": "webview",
+  "componentFramework": "exparser"
+}

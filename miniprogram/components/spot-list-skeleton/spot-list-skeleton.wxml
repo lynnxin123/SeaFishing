@@ -1,0 +1,11 @@
+<view class="spot-skeleton-list">
+  <view wx:for="{{count}}" wx:key="*this" class="spot-skeleton-card">
+    <view class="spot-skeleton-main">
+      <view class="spot-skeleton-line spot-skeleton-line--title skeleton-shimmer"></view>
+      <view class="spot-skeleton-line skeleton-shimmer"></view>
+      <view class="spot-skeleton-line skeleton-shimmer"></view>
+      <view class="spot-skeleton-line spot-skeleton-line--short skeleton-shimmer"></view>
+    </view>
+    <view class="spot-skeleton-arrow skeleton-shimmer"></view>
+  </view>
+</view>

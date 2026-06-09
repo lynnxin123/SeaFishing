@@ -44,6 +44,55 @@
   padding: 0 24rpx 24rpx;
 }
 
+.list-skeleton-wrap {
+  margin-bottom: 8rpx;
+}
+
+.list-error-card {
+  margin-bottom: 28rpx;
+  padding: 48rpx 32rpx;
+  background: #ffffff;
+  border-radius: 28rpx;
+  border: 1rpx solid #eef2f7;
+  box-shadow: 0 14rpx 36rpx rgba(11, 79, 140, 0.1);
+  text-align: center;
+}
+
+.list-error-icon {
+  display: block;
+  font-size: 56rpx;
+  line-height: 1;
+  margin-bottom: 16rpx;
+}
+
+.list-error-text {
+  display: block;
+  color: #2b3a55;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.list-error-hint {
+  display: block;
+  margin-top: 12rpx;
+  color: #98a4b8;
+  font-size: 24rpx;
+}
+
+.list-retry-btn {
+  display: inline-block;
+  margin-top: 28rpx;
+  padding: 18rpx 48rpx;
+  border-radius: 999rpx;
+  background: #0b4f8c;
+  color: #ffffff;
+  font-size: 26rpx;
+}
+
+.comp-card--highlight {
+  box-shadow: 0 0 0 4rpx rgba(12, 109, 255, 0.35), 0 14rpx 36rpx rgba(11, 79, 140, 0.14);
+}
+
 .comp-card {
   margin-bottom: 28rpx;
   background: #ffffff;
@@ -193,4 +242,45 @@
 
 .comp-card__detail-btn:active {
   background: #f0f7ff;
+}
+
+.tool-section {
+  margin-top: 16rpx;
+  padding: 0 24rpx 40rpx;
+}
+
+.tool-section__title {
+  display: block;
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #141d3a;
+  margin-bottom: 20rpx;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+
+.tool-item {
+  background: #ffffff;
+  border-radius: 20rpx;
+  padding: 24rpx;
+  box-shadow: 0 6rpx 18rpx rgba(11, 79, 140, 0.06);
+}
+
+.tool-item__title {
+  display: block;
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #141d3a;
+}
+
+.tool-item__sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  color: #98a4b8;
+  min-height: 32rpx;
 }

@@ -1,26 +1,18 @@
 // 海钓地图页 - 微信开发者工具需此 map.js 文件
 var fishingSpots = require('../../utils/fishingSpots');
 var mapFavorites = require('../../utils/mapFavorites');
+var auth = require('../../utils/auth');
 var bookingNavigate = require('../../utils/bookingNavigate');
 var tencentMap = require('../../config/tencentMap');
+var marineConditions = require('../../utils/marineConditions');
 
-var FISHING_SPOTS = fishingSpots.FISHING_SPOTS;
 var FISH_FILTER_OPTIONS = fishingSpots.FISH_FILTER_OPTIONS;
 var MARKER_ICONS = fishingSpots.MARKER_ICONS;
 var DALIAN_CENTER = fishingSpots.DALIAN_CENTER;
 var resolveShips = fishingSpots.resolveShips;
 
-function pad(n) {
-  return String(n).padStart(2, '0');
-}
-
-function formatToday() {
-  var d = new Date();
-  return pad(d.getMonth() + 1) + '/' + pad(d.getDate());
-}
-
-function getWeekday() {
-  return ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'][new Date().getDay()];
+function getTodayYmd() {
+  return marineConditions.formatDateYmd(new Date());
 }
 
 function calcDistanceKm(lat1, lng1, lat2, lng2) {
@@ -43,6 +35,8 @@ function typeLabel(type) {
   return '钓点';
 }
 
+var initialMarineBlock = marineConditions.getConditionsForDate(getTodayYmd());
+
 Page({
   data: {
     heroBanner: '/images/boat-hero.png',
@@ -59,21 +53,9 @@ Page({
     userLat: 0,
     userLng: 0,
     hasLocation: false,
-    weather: {
-      date: formatToday(),
-      week: getWeekday(),
-      temp: '22°C',
-      desc: '多云',
-      wind: '西北风 7级',
-      windLevel: 7,
-      sea: '大浪',
-      icon: '⛅'
-    },
-    tide: [
-      { label: '涨潮', time: '06:18', height: '2.1m' },
-      { label: '落潮', time: '12:42', height: '0.5m' }
-    ],
-    windBlocked: true,
+    weather: initialMarineBlock.weather,
+    tide: initialMarineBlock.tide,
+    windBlocked: initialMarineBlock.windBlocked,
     fishOptionList: FISH_FILTER_OPTIONS.map(function (name) {
       return { name: name, active: false };
     }),
@@ -82,40 +64,169 @@ Page({
     freeOnly: false,
     favoritesOnly: false,
     showFilterPanel: false,
-    filteredSpots: [],
-    sortedSpotList: [],
+    spotList: [],
     selectedSpot: null,
     showSpotPanel: false
+  },
+
+  invalidateSpotBase: function () {
+    this._spotBaseList = null;
+    mapFavorites.invalidateFavoriteSet();
+  },
+
+  buildSpotBaseList: function () {
+    if (this._spotBaseList) {
+      return this._spotBaseList;
+    }
+    var favSet = mapFavorites.getFavoriteSet();
+    this._spotBaseList = fishingSpots.getSpots().map(function (spot) {
+      return {
+        id: spot.id,
+        name: spot.name,
+        type: spot.type,
+        typeLabel: typeLabel(spot.type),
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        depth: spot.depth,
+        fishSpecies: spot.fishSpecies || [],
+        bestMonths: spot.bestMonths,
+        chargeType: spot.chargeType,
+        priceNote: spot.priceNote,
+        seaRange: spot.seaRange,
+        windSensitive: spot.windSensitive,
+        eventId: spot.eventId,
+        eventTitle: spot.eventTitle,
+        ships: spot.ships || [],
+        favorited: favSet.has(spot.id)
+      };
+    });
+    return this._spotBaseList;
   },
 
   onLoad: function (options) {
     options = options || {};
     var favoritesOnly = options.mode === 'favorites';
+    this._pendingOpenSpotId = wx.getStorageSync('mapOpenSpotId') || '';
+    if (this._pendingOpenSpotId) {
+      wx.removeStorageSync('mapOpenSpotId');
+    }
+    this._lastWindBlocked = initialMarineBlock.windBlocked;
+    this._lastWeatherDate = getTodayYmd();
     this.setData({ favoritesOnly: favoritesOnly });
-    this.refreshWeatherBlock();
+    this.applyFilters();
     var self = this;
-    this.locateUser(function () {
+    var spotsReady = fishingSpots.fetchSpots().then(function () {
+      self.invalidateSpotBase();
+    });
+    var locationReady = new Promise(function (resolve) {
+      self.locateUser(resolve);
+    });
+    Promise.all([spotsReady, locationReady]).then(function () {
+      if (auth.isLoggedIn()) {
+        return mapFavorites.syncFromServerIfStale(60000);
+      }
+      return null;
+    }).then(function () {
       self.applyFilters();
+      if (self._pendingOpenSpotId) {
+        self.openSpotById(self._pendingOpenSpotId);
+        self._pendingOpenSpotId = '';
+      }
     });
   },
 
   onShow: function () {
+    var pageRefresh = require('../../utils/pageRefresh');
+    this.refreshWeatherBlock();
+
     var openMode = wx.getStorageSync('mapOpenMode');
-    if (openMode === 'favorites') {
+    var openFavoritesMode = openMode === 'favorites';
+    if (openFavoritesMode) {
       wx.removeStorageSync('mapOpenMode');
       this.setData({ favoritesOnly: true });
     }
-    if (this.data.selectedSpot) {
-      this.setData({
-        'selectedSpot.favorited': mapFavorites.isFavorite(this.data.selectedSpot.id)
+
+    var self = this;
+    var refreshLight = function () {
+      if (self.data.selectedSpot) {
+        self.setData({
+          'selectedSpot.favorited': mapFavorites.isFavorite(self.data.selectedSpot.id)
+        });
+      }
+    };
+
+    var refreshFull = function () {
+      refreshLight();
+      self.invalidateSpotBase();
+      self.applyFilters();
+    };
+
+    var afterShow = function (fullRefresh) {
+      if (fullRefresh || openFavoritesMode) {
+        refreshFull();
+      } else {
+        refreshLight();
+      }
+      if (auth.isLoggedIn()) {
+        self.processPendingFavorite();
+      }
+    };
+
+    if (auth.isLoggedIn() && pageRefresh.shouldRefresh('map-favorites-sync', 30000)) {
+      var prevKey = mapFavorites.getFavoriteIds().join(',');
+      mapFavorites.syncFromServerIfStale(30000).then(function () {
+        pageRefresh.markRefreshed('map-favorites-sync');
+        var newKey = mapFavorites.getFavoriteIds().join(',');
+        afterShow(newKey !== prevKey || openFavoritesMode);
       });
+      return;
     }
-    this.applyFilters();
+
+    afterShow(openFavoritesMode);
+  },
+
+  processPendingFavorite: function () {
+    if (!auth.isLoggedIn()) return;
+    var spotId = mapFavorites.consumePendingFavorite();
+    if (!spotId) return;
+
+    var self = this;
+    mapFavorites.toggleFavorite(spotId).then(function (favorited) {
+      if (favorited) {
+        wx.showToast({ title: '已收藏', icon: 'none' });
+      }
+      self.invalidateSpotBase();
+      self.openSpotById(spotId);
+      self.applyFilters();
+    }).catch(function () {
+      wx.showToast({ title: '收藏失败，请重试', icon: 'none' });
+    });
   },
 
   refreshWeatherBlock: function () {
-    var windLevel = this.data.weather.windLevel;
-    this.setData({ windBlocked: windLevel >= 6 });
+    var today = getTodayYmd();
+    var block = marineConditions.getConditionsForDate(today);
+    var windChanged = this._lastWindBlocked !== block.windBlocked;
+    var dateChanged = this._lastWeatherDate !== today;
+
+    if (!dateChanged && !windChanged && this._lastWeatherDate) {
+      return;
+    }
+
+    this._lastWindBlocked = block.windBlocked;
+    this._lastWeatherDate = today;
+
+    var patch = {
+      weather: block.weather,
+      tide: block.tide,
+      windBlocked: block.windBlocked
+    };
+    var self = this;
+    this.setData(patch, function () {
+      if (windChanged) {
+        self.applyFilters();
+      }
+    });
   },
 
   locateUser: function (done) {
@@ -146,6 +257,17 @@ Page({
   },
 
   applyFilters: function () {
+    var self = this;
+    if (self._applyFiltersTimer) {
+      clearTimeout(self._applyFiltersTimer);
+    }
+    self._applyFiltersTimer = setTimeout(function () {
+      self._applyFiltersTimer = null;
+      self._runApplyFilters();
+    }, 120);
+  },
+
+  _runApplyFilters: function () {
     var selectedFish = this.data.selectedFish;
     var seaRange = this.data.seaRange;
     var freeOnly = this.data.freeOnly;
@@ -154,72 +276,84 @@ Page({
     var userLat = this.data.userLat;
     var userLng = this.data.userLng;
     var hasLocation = this.data.hasLocation;
-    var favIds = mapFavorites.getFavoriteIds();
+    var favSet = mapFavorites.getFavoriteSet();
+    var baseList = this.buildSpotBaseList();
+    var filtered = [];
+    var spotIndex = {};
 
-    var list = FISHING_SPOTS.map(function (spot) {
-      var copy = Object.assign({}, spot);
-      copy.typeLabel = typeLabel(spot.type);
-      copy.favorited = favIds.indexOf(spot.id) >= 0;
-      copy.resolvedShips = resolveShips(spot.ships);
-      var blocked = windBlocked && spot.windSensitive && spot.type !== 'shore';
-      copy.bookable = !blocked;
-      if (hasLocation) {
-        var km = calcDistanceKm(userLat, userLng, spot.latitude, spot.longitude);
-        copy.distanceKm = km;
-        copy.distanceText = km < 1 ? Math.round(km * 1000) + 'm' : km.toFixed(1) + 'km';
-      } else {
-        copy.distanceText = '--';
+    for (var i = 0; i < baseList.length; i++) {
+      var spot = baseList[i];
+      if (favoritesOnly && !favSet.has(spot.id)) continue;
+      if (seaRange !== 'all' && spot.seaRange !== seaRange) continue;
+      if (freeOnly && spot.chargeType !== 'free') continue;
+      if (selectedFish.length > 0) {
+        var fishMatch = false;
+        for (var j = 0; j < selectedFish.length; j++) {
+          if (spot.fishSpecies.indexOf(selectedFish[j]) >= 0) {
+            fishMatch = true;
+            break;
+          }
+        }
+        if (!fishMatch) continue;
       }
-      return copy;
-    });
 
-    if (favoritesOnly) {
-      list = list.filter(function (s) {
-        return favIds.indexOf(s.id) >= 0;
+      var blocked = windBlocked && spot.windSensitive && spot.type !== 'shore';
+      var distanceKm;
+      var distanceText;
+      if (hasLocation) {
+        distanceKm = calcDistanceKm(userLat, userLng, spot.latitude, spot.longitude);
+        distanceText = distanceKm < 1 ? Math.round(distanceKm * 1000) + 'm' : distanceKm.toFixed(1) + 'km';
+      } else {
+        distanceText = '--';
+      }
+
+      var fullSpot = Object.assign({}, spot, {
+        bookable: !blocked,
+        distanceKm: distanceKm,
+        distanceText: distanceText,
+        favorited: favSet.has(spot.id)
       });
-    }
-    if (seaRange !== 'all') {
-      list = list.filter(function (s) {
-        return s.seaRange === seaRange;
-      });
-    }
-    if (freeOnly) {
-      list = list.filter(function (s) {
-        return s.chargeType === 'free';
-      });
-    }
-    if (selectedFish.length > 0) {
-      list = list.filter(function (s) {
-        return selectedFish.some(function (f) {
-          return s.fishSpecies.indexOf(f) >= 0;
-        });
+      spotIndex[spot.id] = fullSpot;
+
+      filtered.push({
+        id: spot.id,
+        name: spot.name,
+        type: spot.type,
+        typeLabel: spot.typeLabel,
+        priceNote: spot.priceNote,
+        eventId: spot.eventId,
+        bookable: !blocked,
+        distanceKm: distanceKm,
+        distanceText: distanceText
       });
     }
 
-    list.sort(function (a, b) {
+    filtered.sort(function (a, b) {
       return (a.distanceKm || 9999) - (b.distanceKm || 9999);
     });
 
-    var markers = list.map(function (spot, index) {
-      var iconKey = spot.eventId ? 'event' : spot.type;
+    var markers = [];
+    for (var k = 0; k < filtered.length; k++) {
+      var row = filtered[k];
+      var iconKey = row.eventId ? 'event' : row.type;
       var marker = {
-        id: index + 1,
-        spotId: spot.id,
-        latitude: spot.latitude,
-        longitude: spot.longitude,
+        id: k + 1,
+        spotId: row.id,
+        latitude: spotIndex[row.id].latitude,
+        longitude: spotIndex[row.id].longitude,
         iconPath: MARKER_ICONS[iconKey] || MARKER_ICONS.pier,
-        width: spot.eventId ? 40 : 34,
-        height: spot.eventId ? 50 : 42
+        width: row.eventId ? 40 : 34,
+        height: row.eventId ? 50 : 42
       };
-      if (windBlocked && spot.windSensitive && spot.type !== 'shore') {
+      if (windBlocked && spotIndex[row.id].windSensitive && row.type !== 'shore') {
         marker.alpha = 0.45;
       }
-      return marker;
-    });
+      markers.push(marker);
+    }
 
+    this._spotIndex = spotIndex;
     this.setData({
-      filteredSpots: list,
-      sortedSpotList: list,
+      spotList: filtered,
       markers: markers
     });
   },
@@ -290,17 +424,52 @@ Page({
   },
 
   openSpotById: function (spotId) {
-    var spot = this.data.filteredSpots.find(function (s) {
-      return s.id === spotId;
-    });
+    var spot = this._spotIndex && this._spotIndex[spotId];
     if (!spot) return;
-    this.setData({
-      selectedSpot: spot,
-      showSpotPanel: true,
-      centerLat: spot.latitude,
-      centerLng: spot.longitude,
-      scale: 12
-    });
+
+    var self = this;
+    var openPanel = function (fullSpot) {
+      if (!fullSpot.resolvedShips) {
+        fullSpot.resolvedShips = [];
+      }
+      self.setData({
+        selectedSpot: fullSpot,
+        showSpotPanel: true,
+        centerLat: fullSpot.latitude,
+        centerLng: fullSpot.longitude,
+        scale: 12
+      });
+    };
+
+    if (spot.resolvedShips && spot.resolvedShips.length) {
+      openPanel(spot);
+      return;
+    }
+
+    var api = require('../../config/api');
+    if (api.USE_API) {
+      fishingSpots.fetchSpotDetail(spotId).then(function (detail) {
+        if (!detail) {
+          openPanel(spot);
+          return;
+        }
+        var merged = Object.assign({}, spot, detail, {
+          typeLabel: typeLabel(detail.type || spot.type),
+          favorited: mapFavorites.isFavorite(spotId)
+        });
+        if (self._spotIndex) {
+          self._spotIndex[spotId] = merged;
+        }
+        openPanel(merged);
+      });
+      return;
+    }
+
+    spot.resolvedShips = resolveShips(spot.ships || []);
+    if (this._spotIndex) {
+      this._spotIndex[spotId] = spot;
+    }
+    openPanel(spot);
   },
 
   onCloseSpotPanel: function () {
@@ -310,10 +479,30 @@ Page({
   onToggleFavorite: function () {
     var spot = this.data.selectedSpot;
     if (!spot) return;
-    var favorited = mapFavorites.toggleFavorite(spot.id);
-    this.setData({ 'selectedSpot.favorited': favorited });
-    wx.showToast({ title: favorited ? '已收藏' : '已取消收藏', icon: 'none' });
-    this.applyFilters();
+
+    if (!auth.isLoggedIn()) {
+      mapFavorites.setPendingFavorite(spot.id);
+      wx.showToast({ title: '请先登录', icon: 'none' });
+      setTimeout(function () {
+        auth.goLogin({ from: 'map-fav' });
+      }, 400);
+      return;
+    }
+
+    var self = this;
+    mapFavorites.toggleFavorite(spot.id).then(function (favorited) {
+      self.setData({ 'selectedSpot.favorited': favorited });
+      wx.showToast({ title: favorited ? '已收藏' : '已取消收藏', icon: 'none' });
+      self.invalidateSpotBase();
+      self.applyFilters();
+    }).catch(function (err) {
+      if (err && err.code === 'NEED_LOGIN') {
+        mapFavorites.setPendingFavorite(spot.id);
+        auth.goLogin({ from: 'map-fav' });
+        return;
+      }
+      wx.showToast({ title: (err && err.message) || '操作失败', icon: 'none' });
+    });
   },
 
   onNavigateSpot: function () {
@@ -343,7 +532,16 @@ Page({
       return;
     }
     var shipKey = e.currentTarget.dataset.shipKey;
-    var ship = fishingSpots.getShipByKey(shipKey);
+    var ship = null;
+    if (spot.resolvedShips && spot.resolvedShips.length) {
+      for (var i = 0; i < spot.resolvedShips.length; i++) {
+        if (spot.resolvedShips[i].shipKey === shipKey) {
+          ship = spot.resolvedShips[i];
+          break;
+        }
+      }
+    }
+    if (!ship) ship = fishingSpots.getShipByKey(shipKey);
     if (!ship) return;
     bookingNavigate.goBookShip(ship, {
       wharf: spot.name,

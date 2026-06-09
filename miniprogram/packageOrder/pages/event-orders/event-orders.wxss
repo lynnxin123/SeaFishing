@@ -1,0 +1,23 @@
+@import "../booking-orders/booking-orders.wxss";
+
+.skeleton-wrap {
+  min-height: 400rpx;
+}
+
+.empty-icon {
+  font-size: 56rpx;
+  line-height: 1;
+  margin-bottom: 16rpx;
+}
+
+.empty-hint {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.retry-link {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: #0c6dff;
+}

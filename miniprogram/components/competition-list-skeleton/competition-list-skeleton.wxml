@@ -1,0 +1,16 @@
+<view class="comp-skeleton-list">
+  <view wx:for="{{count}}" wx:key="*this" class="comp-skeleton-card">
+    <view class="comp-skeleton-banner skeleton-shimmer"></view>
+    <view class="comp-skeleton-body">
+      <view class="comp-skeleton-line comp-skeleton-line--en skeleton-shimmer"></view>
+      <view class="comp-skeleton-line comp-skeleton-line--title skeleton-shimmer"></view>
+      <view class="comp-skeleton-line skeleton-shimmer"></view>
+      <view class="comp-skeleton-meta">
+        <view class="comp-skeleton-line comp-skeleton-line--meta skeleton-shimmer"></view>
+        <view class="comp-skeleton-line comp-skeleton-line--meta skeleton-shimmer"></view>
+        <view class="comp-skeleton-line comp-skeleton-line--meta skeleton-shimmer"></view>
+      </view>
+      <view class="comp-skeleton-btn skeleton-shimmer"></view>
+    </view>
+  </view>
+</view>

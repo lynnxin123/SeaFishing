@@ -1,7 +1,9 @@
 var auth = require('../../utils/auth');
+var rewardService = require('../../utils/rewardService');
 
 var MENU_LIST = [
   { id: 'booking', title: '海钓预约订单' },
+  { id: 'boat-fav', title: '收藏的船只' },
   { id: 'map-fav', title: '收藏的钓点' },
   { id: 'event', title: '赛事报名订单' }
 ];
@@ -11,7 +13,9 @@ Page({
     isLoggedIn: false,
     showUnverified: false,
     userInfo: auth.GUEST_PROFILE,
-    menuList: MENU_LIST
+    menuList: MENU_LIST,
+    showRewards: false,
+    rewardLogs: []
   },
 
   onLoad() {
@@ -19,6 +23,20 @@ Page({
   },
 
   onShow() {
+    var self = this;
+    if (auth.isLoggedIn()) {
+      auth.refreshProfileFromServer({ minIntervalMs: 60000 }).then(function (profile) {
+        if (profile) {
+          self.applyLoggedState(profile);
+        } else {
+          self.syncFromStorage();
+        }
+        if (self.data.showRewards) {
+          self.loadRewardLogs();
+        }
+      });
+      return;
+    }
     this.syncFromStorage();
   },
 
@@ -97,7 +115,40 @@ Page({
   },
 
   onBellTap() {
-    wx.showToast({ title: '消息功能开发中', icon: 'none' });
+    wx.navigateTo({ url: '/packageUser/pages/messages/messages' });
+  },
+
+  onCheckIn() {
+    var self = this;
+    rewardService
+      .checkIn()
+      .then(function (profile) {
+        if (profile) {
+          self.applyLoggedState(profile);
+        }
+        wx.showToast({ title: '签到成功', icon: 'success' });
+        if (self.data.showRewards) {
+          self.loadRewardLogs();
+        }
+      })
+      .catch(function (err) {
+        wx.showToast({ title: (err && err.message) || '签到失败', icon: 'none' });
+      });
+  },
+
+  onToggleRewards() {
+    var show = !this.data.showRewards;
+    this.setData({ showRewards: show });
+    if (show) {
+      this.loadRewardLogs();
+    }
+  },
+
+  loadRewardLogs() {
+    var self = this;
+    rewardService.fetchRewardLogs().then(function (list) {
+      self.setData({ rewardLogs: list || [] });
+    });
   },
 
   onMenuTap(e) {
@@ -107,12 +158,19 @@ Page({
     }
     var id = e.currentTarget.dataset.id;
     if (id === 'booking') {
-      wx.navigateTo({ url: '/pages/booking-orders/booking-orders' });
+      wx.navigateTo({ url: '/packageOrder/pages/booking-orders/booking-orders' });
+      return;
+    }
+    if (id === 'boat-fav') {
+      wx.navigateTo({ url: '/packageOrder/pages/boat-favorites/boat-favorites' });
       return;
     }
     if (id === 'map-fav') {
-      wx.setStorageSync('mapOpenMode', 'favorites');
-      wx.switchTab({ url: '/pages/map/map' });
+      wx.navigateTo({ url: '/packageOrder/pages/map-favorites/map-favorites' });
+      return;
+    }
+    if (id === 'event') {
+      wx.navigateTo({ url: '/packageOrder/pages/event-orders/event-orders' });
       return;
     }
     wx.showToast({ title: '功能开发中', icon: 'none' });

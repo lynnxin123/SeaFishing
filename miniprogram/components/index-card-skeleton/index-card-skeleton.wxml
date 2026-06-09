@@ -1,0 +1,17 @@
+<view class="index-skeleton-list">
+  <view wx:for="{{count}}" wx:key="*this" class="index-skeleton-card">
+    <view class="index-skeleton-image skeleton-shimmer"></view>
+    <view class="index-skeleton-body">
+      <view class="index-skeleton-row">
+        <view class="index-skeleton-line index-skeleton-line--title skeleton-shimmer"></view>
+        <view class="index-skeleton-price skeleton-shimmer"></view>
+      </view>
+      <view class="index-skeleton-line skeleton-shimmer"></view>
+      <view class="index-skeleton-line index-skeleton-line--short skeleton-shimmer"></view>
+      <view class="index-skeleton-foot">
+        <view class="index-skeleton-tag skeleton-shimmer"></view>
+        <view class="index-skeleton-btn skeleton-shimmer"></view>
+      </view>
+    </view>
+  </view>
+</view>

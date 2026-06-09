@@ -1,0 +1,50 @@
+<view class="register-page">
+  <navigation-bar title="赛事报名" back="{{true}}" color="black" background="#ffffff"></navigation-bar>
+
+  <competition-detail-skeleton wx:if="{{pageState === 'loading'}}" />
+
+  <view wx:elif="{{pageState === 'error'}}" class="register-error">
+    <text class="register-error__icon" aria-hidden="true">⚠</text>
+    <text class="register-error__text">{{loadError}}</text>
+    <view class="register-error__retry" bindtap="onRetryLoad">重新加载</view>
+  </view>
+
+  <block wx:elif="{{pageState === 'ready'}}">
+  <view class="register-head">
+    <text class="register-head__label">报名赛事</text>
+    <text class="register-head__name">{{competition.name}}</text>
+    <text class="register-head__meta">时间：{{competition.time}} · 地点：{{competition.location}}</text>
+  </view>
+
+  <view class="register-form">
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>姓名</view>
+      <input class="form-input" placeholder="请输入真实姓名" value="{{form.realName}}" bindinput="onInput" data-field="realName" maxlength="20" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>手机号</view>
+      <input class="form-input" type="number" placeholder="请输入手机号" value="{{form.phone}}" bindinput="onInput" data-field="phone" maxlength="11" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label"><text class="required">*</text>参赛人数</view>
+      <input class="form-input" type="number" placeholder="请输入参赛人数" value="{{form.people}}" bindinput="onInput" data-field="people" maxlength="2" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">紧急联系人</view>
+      <input class="form-input" placeholder="选填" value="{{form.emergencyContact}}" bindinput="onInput" data-field="emergencyContact" maxlength="20" />
+    </view>
+
+    <view class="form-item">
+      <view class="form-label">备注</view>
+      <textarea class="form-textarea" placeholder="选填" value="{{form.remark}}" bindinput="onInput" data-field="remark" maxlength="200" />
+    </view>
+  </view>
+
+  <view class="register-foot">
+    <view class="register-submit" bindtap="onSubmit">提交报名</view>
+  </view>
+  </block>
+</view>

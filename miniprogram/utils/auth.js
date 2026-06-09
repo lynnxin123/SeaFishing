@@ -1,8 +1,8 @@
 var LOGIN_KEY = 'isLoggedIn';
 var USER_KEY = 'userProfile';
 
-/** 测试阶段跳过身份证实名，正式上线前改为 false */
-var SKIP_ID_VERIFY = true;
+/** 开发环境可改为 true 跳过实名；正式上线前保持 false */
+var SKIP_ID_VERIFY = false;
 
 var DEFAULT_PROFILE = {
   nickName: '微信用户',
@@ -26,6 +26,10 @@ var GUEST_PROFILE = {
 };
 
 function isLoggedIn() {
+  var api = require('../config/api');
+  if (api.USE_API) {
+    return !!wx.getStorageSync('token');
+  }
   var v = wx.getStorageSync(LOGIN_KEY);
   return v === true || v === 'true' || v === 1 || v === '1';
 }
@@ -74,7 +78,143 @@ function clearSession() {
   wx.removeStorageSync(LOGIN_KEY);
   wx.removeStorageSync(USER_KEY);
   wx.removeStorageSync('phoneCode');
+  wx.removeStorageSync('token');
+  try {
+    require('./request').clearTokenCache();
+  } catch (e) {}
   setLoggedIn(false);
+}
+
+function mergeServerProfile(localProfile, serverProfile) {
+  if (!serverProfile) return localProfile;
+  return Object.assign({}, localProfile, {
+    nickName: serverProfile.nickName || localProfile.nickName,
+    avatarUrl: serverProfile.avatarUrl != null ? serverProfile.avatarUrl : localProfile.avatarUrl,
+    phone: serverProfile.phone || localProfile.phone || '',
+    verified: SKIP_ID_VERIFY ? true : serverProfile.verified === true,
+    realName: serverProfile.realName || localProfile.realName || '',
+    levelName: serverProfile.levelName || localProfile.levelName,
+    medals: serverProfile.medals != null ? serverProfile.medals : localProfile.medals,
+    points: serverProfile.points != null ? serverProfile.points : localProfile.points,
+    fishFood: serverProfile.fishFood != null ? serverProfile.fishFood : localProfile.fishFood
+  });
+}
+
+function loginWithBackend(userInfo, phoneCode) {
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    return Promise.resolve(saveUserSession(userInfo, phoneCode));
+  }
+
+  var request = require('./request');
+  return new Promise(function (resolve, reject) {
+    wx.login({
+      success: function (loginRes) {
+        request
+          .post('/auth/wx-login', {
+            code: loginRes.code || 'dev:local',
+            nickName: userInfo && userInfo.nickName,
+            avatarUrl: userInfo && userInfo.avatarUrl
+          })
+          .then(function (data) {
+            if (data && data.token) {
+              wx.setStorageSync('token', data.token);
+              try {
+                require('./request').clearTokenCache();
+              } catch (e) {}
+            }
+            var profile = saveUserSession(userInfo || (data && data.user), phoneCode);
+            if (data && data.user) {
+              profile = mergeServerProfile(profile, data.user);
+              wx.setStorageSync(USER_KEY, profile);
+              syncLoginState();
+            }
+            var bookingOrders = require('./bookingOrders');
+            bookingOrders.syncLocalOrdersToServer().then(function (count) {
+              if (count > 0) {
+                wx.showToast({
+                  title: '已同步' + count + '条本地订单',
+                  icon: 'none'
+                });
+              }
+              resolve(profile);
+            }).catch(function () {
+              resolve(profile);
+            });
+          })
+          .catch(function (err) {
+            reject(err);
+          });
+      },
+      fail: function (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+var _lastProfileRefreshAt = 0;
+
+function refreshProfileFromServer(options) {
+  options = options || {};
+  var minIntervalMs = options.minIntervalMs != null ? options.minIntervalMs : 0;
+  var force = options.force === true;
+  var now = Date.now();
+  if (!force && minIntervalMs > 0 && now - _lastProfileRefreshAt < minIntervalMs) {
+    return Promise.resolve(getUserProfile());
+  }
+
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.resolve(getUserProfile());
+  }
+
+  var request = require('./request');
+  return request
+    .get('/users/me')
+    .then(function (serverProfile) {
+      var prev = getUserProfile() || {};
+      var merged = mergeServerProfile(prev, serverProfile);
+      wx.setStorageSync(USER_KEY, merged);
+      setLoggedIn(true);
+      syncLoginState();
+      _lastProfileRefreshAt = Date.now();
+      return merged;
+    })
+    .catch(function () {
+      return getUserProfile();
+    });
+}
+
+function saveVerificationRemote(info) {
+  info = info || {};
+  var local = saveVerification(info);
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.resolve(local);
+  }
+
+  var request = require('./request');
+  return request
+    .patch('/users/me/verify', {
+      realName: info.realName || '',
+      idNumber: info.idNumber || '',
+      idType: info.idType || '身份证'
+    })
+    .then(function (serverProfile) {
+      var merged = mergeServerProfile(local, serverProfile);
+      wx.setStorageSync(USER_KEY, merged);
+      syncLoginState();
+      return merged;
+    })
+    .catch(function (err) {
+      if (!api.USE_API) {
+        return local;
+      }
+      return Promise.reject(err || { message: '实名认证失败' });
+    });
 }
 
 function syncLoginState() {
@@ -92,7 +232,7 @@ function goLogin(options) {
   if (options.redirect) {
     query.push('redirect=' + encodeURIComponent(options.redirect));
   }
-  var url = '/pages/login/login';
+  var url = '/packageUser/pages/login/login';
   if (query.length) url += '?' + query.join('&');
   wx.navigateTo({ url: url });
 }
@@ -124,7 +264,7 @@ function goVerify(options) {
   if (options.redirect) {
     query.push('redirect=' + encodeURIComponent(options.redirect));
   }
-  var url = '/pages/verify/verify';
+  var url = '/packageUser/pages/verify/verify';
   if (query.length) url += '?' + query.join('&');
   wx.navigateTo({ url: url });
 }
@@ -158,6 +298,9 @@ module.exports = {
   setLoggedIn: setLoggedIn,
   saveUserSession: saveUserSession,
   saveVerification: saveVerification,
+  saveVerificationRemote: saveVerificationRemote,
+  loginWithBackend: loginWithBackend,
+  refreshProfileFromServer: refreshProfileFromServer,
   clearSession: clearSession,
   syncLoginState: syncLoginState,
   goLogin: goLogin,

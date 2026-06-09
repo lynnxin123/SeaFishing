@@ -221,8 +221,15 @@ var DALIAN_CENTER = {
   longitude: 121.614
 };
 
+var _cachedSpots = null;
+var _cacheTs = 0;
+var _fetchPromise = null;
+var _detailCache = {};
+var SPOTS_CACHE_TTL = 5 * 60 * 1000;
+
 function getSpotById(id) {
-  return FISHING_SPOTS.find(function (s) {
+  var spots = getSpots();
+  return spots.find(function (s) {
     return s.id === id;
   });
 }
@@ -235,9 +242,90 @@ function resolveShips(shipKeys) {
   if (!Array.isArray(shipKeys)) return [];
   return shipKeys
     .map(function (key) {
-      return MAP_SHIPS[key];
+      return MAP_SHIPS[key] || null;
     })
     .filter(Boolean);
+}
+
+function fetchSpots(options) {
+  options = options || {};
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    _cachedSpots = FISHING_SPOTS.slice();
+    _cacheTs = Date.now();
+    return Promise.resolve(_cachedSpots);
+  }
+
+  var now = Date.now();
+  if (!options.force && _cachedSpots && now - _cacheTs < SPOTS_CACHE_TTL) {
+    return Promise.resolve(_cachedSpots);
+  }
+  if (_fetchPromise) {
+    return _fetchPromise;
+  }
+
+  var request = require('./request');
+  _fetchPromise = request
+    .get('/spots')
+    .then(function (list) {
+      _cachedSpots = Array.isArray(list) ? list : FISHING_SPOTS.slice();
+      _cacheTs = Date.now();
+      return _cachedSpots;
+    })
+    .catch(function () {
+      _cachedSpots = FISHING_SPOTS.slice();
+      _cacheTs = Date.now();
+      return _cachedSpots;
+    })
+    .finally(function () {
+      _fetchPromise = null;
+    });
+
+  return _fetchPromise;
+}
+
+function fetchSpotDetail(spotId) {
+  if (!spotId) {
+    return Promise.resolve(null);
+  }
+  if (_detailCache[spotId]) {
+    return Promise.resolve(_detailCache[spotId]);
+  }
+
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    var local = getSpotById(spotId);
+    if (!local) {
+      return Promise.resolve(null);
+    }
+    var detail = Object.assign({}, local, {
+      resolvedShips: resolveShips(local.ships || [])
+    });
+    _detailCache[spotId] = detail;
+    return Promise.resolve(detail);
+  }
+
+  var request = require('./request');
+  return request
+    .get('/spots/' + spotId)
+    .then(function (spot) {
+      if (!spot) return null;
+      _detailCache[spotId] = spot;
+      return spot;
+    })
+    .catch(function () {
+      return null;
+    });
+}
+
+function getSpots() {
+  return _cachedSpots || FISHING_SPOTS;
+}
+
+function invalidateSpotCache() {
+  _cachedSpots = null;
+  _cacheTs = 0;
+  _detailCache = {};
 }
 
 module.exports = {
@@ -246,7 +334,11 @@ module.exports = {
   FISH_FILTER_OPTIONS: FISH_FILTER_OPTIONS,
   MARKER_ICONS: MARKER_ICONS,
   DALIAN_CENTER: DALIAN_CENTER,
+  fetchSpots: fetchSpots,
+  fetchSpotDetail: fetchSpotDetail,
+  getSpots: getSpots,
   getSpotById: getSpotById,
   getShipByKey: getShipByKey,
-  resolveShips: resolveShips
+  resolveShips: resolveShips,
+  invalidateSpotCache: invalidateSpotCache
 };

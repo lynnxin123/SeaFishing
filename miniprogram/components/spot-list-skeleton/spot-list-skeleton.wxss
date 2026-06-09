@@ -1,0 +1,57 @@
+.spot-skeleton-list {
+  padding: 24rpx;
+}
+
+.spot-skeleton-card {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.spot-skeleton-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14rpx;
+}
+
+.spot-skeleton-line {
+  height: 24rpx;
+  border-radius: 12rpx;
+}
+
+.spot-skeleton-line--title {
+  width: 68%;
+  height: 30rpx;
+}
+
+.spot-skeleton-line--short {
+  width: 52%;
+}
+
+.spot-skeleton-arrow {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  margin-left: 16rpx;
+  flex-shrink: 0;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f0f2f5 25%, #e4e8ee 37%, #f0f2f5 63%);
+  background-size: 400% 100%;
+  animation: spot-skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes spot-skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}

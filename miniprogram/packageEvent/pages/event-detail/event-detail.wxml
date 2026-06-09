@@ -1,0 +1,79 @@
+<view class="detail-page">
+  <navigation-bar title="赛事详情" back="{{true}}" color="black" background="#ffffff"></navigation-bar>
+
+  <competition-detail-skeleton wx:if="{{pageState === 'loading'}}" />
+
+  <view wx:elif="{{pageState === 'error'}}" class="detail-error">
+    <text class="detail-error__icon" aria-hidden="true">⚠</text>
+    <text class="detail-error__text">{{loadError}}</text>
+    <view class="detail-error__retry" bindtap="onRetryLoad">重新加载</view>
+  </view>
+
+  <block wx:elif="{{pageState === 'ready'}}">
+  <view class="detail-hero-wrap" bindtap="onPreviewImage">
+    <image class="detail-hero" src="{{competition.cover}}" mode="aspectFill" />
+    <view class="detail-hero__mask"></view>
+    <view class="detail-hero__tip">点击查看大图</view>
+  </view>
+
+  <view class="detail-body">
+    <text class="detail-en">{{competition.enLabel}}</text>
+    <text class="detail-name">{{competition.name}}</text>
+    <text class="detail-summary">{{competition.summary}}</text>
+
+    <view class="detail-meta">
+      <view class="detail-meta__row">
+        <text class="detail-meta__label">赛事状态</text>
+        <view class="detail-status detail-status--{{competition.status}}">{{competition.statusText}}</view>
+      </view>
+      <view class="detail-meta__row">
+        <text class="detail-meta__label">比赛地点</text>
+        <text class="detail-meta__value">{{competition.location}}</text>
+      </view>
+      <view class="detail-meta__row">
+        <text class="detail-meta__label">比赛时间</text>
+        <text class="detail-meta__value">{{competition.time}}</text>
+      </view>
+      <view class="detail-meta__row">
+        <text class="detail-meta__label">报名费用</text>
+        <text class="detail-meta__value">{{competition.fee}}</text>
+      </view>
+      <view class="detail-meta__row">
+        <text class="detail-meta__label">主办方</text>
+        <text class="detail-meta__value">{{competition.organizer}}</text>
+      </view>
+    </view>
+
+    <view class="detail-section">
+      <view class="detail-section__head">
+        <view class="detail-section__accent"></view>
+        <text class="detail-section__title">赛事简介</text>
+      </view>
+      <text class="detail-section__text">{{competition.intro}}</text>
+    </view>
+
+    <view class="detail-section">
+      <view class="detail-section__head">
+        <view class="detail-section__accent"></view>
+        <text class="detail-section__title">竞赛规则</text>
+      </view>
+      <view class="detail-rule" wx:for="{{competition.rules}}" wx:key="*this">
+        <text class="detail-rule__dot">·</text>
+        <text class="detail-rule__text">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="detail-section">
+      <view class="detail-section__head">
+        <view class="detail-section__accent"></view>
+        <text class="detail-section__title">奖项设置</text>
+      </view>
+      <text class="detail-section__text">{{competition.prizes}}</text>
+    </view>
+  </view>
+
+  <view class="detail-foot">
+    <view class="detail-foot__btn" bindtap="onGoRegister">赛事报名</view>
+  </view>
+  </block>
+</view>

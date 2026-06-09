@@ -1,0 +1,45 @@
+<view class="orders-page">
+  <navigation-bar title="收藏的钓点" back="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+
+  <view class="orders-body">
+    <view wx:if="{{loading}}" class="skeleton-wrap">
+      <spot-list-skeleton count="{{4}}" />
+    </view>
+
+    <view wx:elif="{{loadError}}" class="empty-wrap">
+      <text class="empty-icon" aria-hidden="true">⚠</text>
+      <text class="empty-text">{{loadError}}</text>
+      <text class="empty-hint">请检查网络后重试</text>
+      <view class="empty-btn" bindtap="loadList">重新加载</view>
+    </view>
+
+    <view wx:elif="{{isEmpty}}" class="empty-wrap">
+      <text class="empty-text">暂无收藏钓点</text>
+      <text class="empty-hint">在海钓地图中收藏钓点后，会显示在这里</text>
+      <view class="empty-btn" bindtap="onGoMap">去地图看看</view>
+    </view>
+
+    <scroll-view wx:else class="order-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="order-list">
+        <view
+          wx:for="{{list}}"
+          wx:key="id"
+          class="spot-card"
+          data-id="{{item.id}}"
+          bindtap="onItemTap"
+        >
+          <view class="spot-card-main">
+            <view class="order-title-row">
+              <text class="order-ship">{{item.name}}</text>
+              <text class="spot-type">{{item.typeLabel}}</text>
+            </view>
+            <text class="order-meta">{{item.priceNote}}</text>
+            <text class="order-meta">鱼种：{{item.fishSpecies.join('、')}}</text>
+            <text class="order-meta">最佳月份：{{item.bestMonths}}</text>
+          </view>
+          <text class="menu-arrow">›</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+</view>

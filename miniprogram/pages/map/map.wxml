@@ -2,7 +2,7 @@
   <navigation-bar title="海钓地图" back="{{false}}" color="black" background="#ffffff"></navigation-bar>
 
   <view class="hero-wrap">
-    <image class="hero-wrap__bg" src="{{heroBanner}}" mode="aspectFill" />
+    <image lazy-load class="hero-wrap__bg" src="{{heroBanner}}" mode="aspectFill" />
     <view class="hero-wrap__mask"></view>
     <view class="hero-wrap__fade"></view>
     <view class="hero-wrap__bottom"></view>
@@ -126,7 +126,7 @@
     <view class="list-title">附近钓场 · 由近到远</view>
     <view class="spot-list">
       <view
-        wx:for="{{sortedSpotList}}"
+        wx:for="{{spotList}}"
         wx:key="id"
         class="spot-list-item {{!item.bookable ? 'spot-list-item-disabled' : ''}}"
         data-id="{{item.id}}"
@@ -142,7 +142,7 @@
           <text wx:if="{{item.eventId}}" class="event-tag">赛事</text>
         </view>
       </view>
-      <view wx:if="{{sortedSpotList.length === 0}}" class="list-empty">暂无符合条件的钓点</view>
+      <view wx:if="{{spotList.length === 0}}" class="list-empty">暂无符合条件的钓点</view>
     </view>
   </view>
   </view>
@@ -186,7 +186,7 @@
         data-ship-key="{{item.shipKey}}"
         bindtap="onBookShipTap"
       >
-        <image class="ship-thumb" src="{{item.images[0]}}" mode="aspectFill" />
+        <image lazy-load class="ship-thumb" src="{{item.images[0]}}" mode="aspectFill" />
         <view class="ship-main">
           <text class="ship-name">{{item.shipName}}</text>
           <text class="ship-meta">船长 {{item.captain}} · 可载{{item.maxNum}}人</text>

@@ -1,0 +1,16 @@
+<view class="feature-skeleton-card">
+  <view class="feature-skeleton-title skeleton-shimmer"></view>
+  <block wx:if="{{variant === 'stats'}}">
+    <view wx:for="{{count}}" wx:key="*this" class="feature-skeleton-stat">
+      <view class="feature-skeleton-label skeleton-shimmer"></view>
+      <view class="feature-skeleton-value skeleton-shimmer"></view>
+    </view>
+  </block>
+  <block wx:else>
+    <view wx:for="{{count}}" wx:key="*this" class="feature-skeleton-rank">
+      <view class="feature-skeleton-no skeleton-shimmer"></view>
+      <view class="feature-skeleton-name skeleton-shimmer"></view>
+      <view class="feature-skeleton-score skeleton-shimmer"></view>
+    </view>
+  </block>
+</view>

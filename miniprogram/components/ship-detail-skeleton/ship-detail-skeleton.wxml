@@ -1,0 +1,14 @@
+<view class="detail-skeleton">
+  <view class="detail-skeleton__title skeleton-shimmer"></view>
+  <view class="detail-skeleton__cover skeleton-shimmer"></view>
+  <view class="detail-skeleton__line skeleton-shimmer"></view>
+  <view class="detail-skeleton__line detail-skeleton__line--short skeleton-shimmer"></view>
+  <view class="detail-skeleton__tabs">
+    <view class="detail-skeleton__tab skeleton-shimmer"></view>
+    <view class="detail-skeleton__tab skeleton-shimmer"></view>
+    <view class="detail-skeleton__tab skeleton-shimmer"></view>
+    <view class="detail-skeleton__tab skeleton-shimmer"></view>
+  </view>
+  <view class="detail-skeleton__card skeleton-shimmer"></view>
+  <view class="detail-skeleton__card skeleton-shimmer"></view>
+</view>

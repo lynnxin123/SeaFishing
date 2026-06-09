@@ -1,5 +1,8 @@
 const auth = require('../../utils/auth')
 const bookingOrders = require('../../utils/bookingOrders')
+const featuredBoats = require('../../utils/featuredBoats')
+const bookingNavigate = require('../../utils/bookingNavigate')
+const marineConditions = require('../../utils/marineConditions')
 
 const today = new Date()
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -31,52 +34,20 @@ Page({
         subtitle: '丰收渔获，精彩不断'
       }
     ],
-    weather: {
-      date: '06/02',
-      week: '星期二',
-      temp: '26°C',
-      desc: '晴朗',
-      wind: '东南风 3级',
-      icon: '☀️',
-      sea: '平静'
-    },
-    tide: [
-      { label: '涨潮', time: '07:28', height: '1.8m' },
-      { label: '落潮', time: '13:45', height: '0.6m' }
-    ],
+    weather: marineConditions.getConditionsForDate(defaultDate).weather,
+    tide: marineConditions.getConditionsForDate(defaultDate).tide,
     tabs: ['海钓约船', '赛事报名'],
     activeTab: 0,
     selectedDate: defaultDate,
     minDate: defaultDate,
     maxDate,
     pax: 2,
-    boats: [
-      {
-        id: 1,
-        image: '/images/Reservation1.jpg',
-        name: '深海探索',
-        captain: '阿峰',
-        capacity: 8,
-        price: 980
-      },
-      {
-        id: 2,
-        image: '/images/Reservation2.jpg',
-        name: '海风之旅',
-        captain: '婷婷',
-        capacity: 8,
-        price: 1680
-      },
-      {
-        id: 3,
-        image: '/images/Reservation3.jpg',
-        name: '蓝海号渔船',
-        captain: '大海',
-        capacity: 10,
-        price: 1280
-      }
-    ],
+    boats: featuredBoats.getIndexBoats(),
+    boatsLoading: false,
+    boatsError: '',
     eventCards: [] as Array<{ id: number; banner: string; title: string; location: string; date: string }>,
+    eventsLoading: false,
+    eventsError: '',
     showReservePopup: false,
     reserveBoat: {
       name: '',
@@ -85,11 +56,95 @@ Page({
   },
 
   onLoad() {
+    const api = require('../../config/api')
     const eventService = require('../../utils/eventService')
-    this.setData({ eventCards: eventService.getIndexEventCards() })
+    if (api.USE_API) {
+      this.setData({ boatsLoading: true })
+    }
+    eventService.fetchBanners().then((banners) => {
+      if (Array.isArray(banners) && banners.length) {
+        this.setData({ bannerImages: banners })
+      }
+    })
+    this.loadFeaturedBoats()
+    this.refreshMarineConditions(this.data.selectedDate)
+  },
+
+  loadEventCards() {
+    const eventService = require('../../utils/eventService')
+    const api = require('../../config/api')
+    if (!api.USE_API) {
+      this.setData({
+        eventCards: eventService.getIndexEventCards(),
+        eventsLoading: false,
+        eventsError: ''
+      })
+      return
+    }
+    this.setData({ eventsLoading: true, eventsError: '' })
+    eventService
+      .fetchCompetitionList({ strict: true, limit: 6 })
+      .then(() => {
+        this.setData({
+          eventCards: eventService.getIndexEventCards(6),
+          eventsLoading: false,
+          eventsError: ''
+        })
+      })
+      .catch(() => {
+        this.setData({
+          eventCards: eventService.getIndexEventCards(6),
+          eventsLoading: false,
+          eventsError: ''
+        })
+      })
+  },
+
+  loadFeaturedBoats() {
+    const api = require('../../config/api')
+    if (!api.USE_API) {
+      this.setData({ boatsLoading: false, boatsError: '' })
+      return
+    }
+    this.setData({ boatsLoading: true, boatsError: '' })
+    const request = require('../../utils/request')
+    request
+      .get('/boats', { boatIds: featuredBoats.FEATURED_BOAT_IDS.join(',') })
+      .then((res) => {
+        const enriched = featuredBoats.enrichFromApi(res.items || [])
+        if (enriched.length) {
+          this.setData({
+            boats: featuredBoats.getIndexBoats(enriched),
+            boatsLoading: false,
+            boatsError: ''
+          })
+          return
+        }
+        this.setData({
+          boats: featuredBoats.getIndexBoats(),
+          boatsLoading: false,
+          boatsError: ''
+        })
+      })
+      .catch(() => {
+        // 主推船有静态兜底，接口失败时静默展示，避免首页反复提示
+        this.setData({
+          boats: featuredBoats.getIndexBoats(),
+          boatsLoading: false,
+          boatsError: ''
+        })
+      })
   },
 
   onShow() {
+    const today = formatDate(new Date())
+    if (this.data.selectedDate < today) {
+      this.setData({ selectedDate: today, minDate: today })
+      this.refreshMarineConditions(today)
+    } else {
+      this.refreshMarineConditions(this.data.selectedDate, true)
+    }
+
     const boatId = bookingOrders.consumePendingIndexReserve()
     if (boatId == null || !auth.isLoggedIn()) {
       return
@@ -99,17 +154,34 @@ Page({
       auth.promptVerify({ from: 'reserve' })
       return
     }
-    const boat = this.data.boats.find((item) => item.id === boatId) || { name: '', captain: '' }
-    this.setData({ showReservePopup: true, reserveBoat: boat })
+    this.openReserveById(boatId)
+  },
+
+  refreshMarineConditions(dateStr: string, onlyIfChanged = false) {
+    if (onlyIfChanged && this._lastMarineDate === dateStr) {
+      return
+    }
+    const block = marineConditions.getConditionsForDate(dateStr)
+    this._lastMarineDate = dateStr
+    this.setData({
+      weather: block.weather,
+      tide: block.tide
+    })
   },
 
   onTabChange(event: any) {
     const index = Number(event.currentTarget.dataset.index)
     this.setData({ activeTab: index })
+    if (index === 1 && !this._eventsLoaded) {
+      this._eventsLoaded = true
+      this.loadEventCards()
+    }
   },
 
   bindDateChange(event: any) {
-    this.setData({ selectedDate: event.detail.value })
+    const selectedDate = event.detail.value
+    this.setData({ selectedDate })
+    this.refreshMarineConditions(selectedDate)
   },
 
   changePax(event: any) {
@@ -117,6 +189,33 @@ Page({
     let pax = this.data.pax + delta
     if (pax < 1) pax = 1
     this.setData({ pax })
+  },
+
+  getBoatCard(id: number) {
+    return this.data.boats.find((item) => item.id === id) || { id, name: '', captain: '' }
+  },
+
+  getFeaturedShip(indexId: number) {
+    const base = featuredBoats.findByIndexId(indexId)
+    if (!base) return null
+    const card = this.getBoatCard(indexId)
+    return Object.assign({}, base, {
+      shipName: card.name || base.shipName,
+      captain: card.captain || base.captain,
+      maxNum: card.capacity != null ? card.capacity : base.maxNum,
+      price: card.price != null ? card.price : base.price,
+      images: card.image ? [card.image] : base.images
+    })
+  },
+
+  onBoatTap(event: any) {
+    const id = Number(event.currentTarget.dataset.id)
+    const ship = this.getFeaturedShip(id)
+    if (!ship) return
+    bookingNavigate.goBookShip(ship, {
+      date: this.data.selectedDate,
+      people: String(this.data.pax)
+    })
   },
 
   openReserve(event: any) {
@@ -131,7 +230,11 @@ Page({
       auth.promptVerify({ from: 'reserve' })
       return
     }
-    const boat = this.data.boats.find((item) => item.id === id) || { name: '', captain: '' }
+    this.openReserveById(id)
+  },
+
+  openReserveById(id: number) {
+    const boat = this.getBoatCard(id)
     this.setData({ showReservePopup: true, reserveBoat: boat })
   },
 
@@ -152,29 +255,34 @@ Page({
       auth.promptVerify({ from: 'reserve' })
       return
     }
-    const boat = this.data.reserveBoat as { name?: string; captain?: string; price?: number; image?: string }
+    const card = this.data.reserveBoat as { id?: number; name?: string; captain?: string; price?: number; image?: string }
+    const ship = card.id != null ? this.getFeaturedShip(card.id) : null
     bookingOrders.addBookingOrder({
-      shipName: boat.name || '海钓预约',
-      captainName: boat.captain || '',
-      coverImage: boat.image || '/images/Reservation1.jpg',
-      price: boat.price,
+      boatId: (ship && ship.boatId) || '',
+      shipName: card.name || '海钓预约',
+      captainName: card.captain || '',
+      coverImage: card.image || '/images/Reservation1.jpg',
+      price: card.price,
       date: this.data.selectedDate,
       people: String(this.data.pax),
-      wharf: '待定',
+      wharf: (ship && (ship.displayWharf || ship.wharf)) || '待定',
+      departWharf: (ship && (ship.displayWharf || ship.wharf)) || '',
       status: 'pending_accept'
+    }).then(function () {
+      this.closeReserve()
+      bookingOrders.goOrdersAfterSuccess()
+    }.bind(this)).catch(function (err) {
+      if (err && err.code === 'NEED_LOGIN') {
+        auth.goLogin({ from: 'reserve' })
+        return
+      }
+      wx.showToast({ title: (err && err.message) || '预约失败', icon: 'none' })
     })
-    this.closeReserve()
-    bookingOrders.goOrdersAfterSuccess()
   },
 
   onEventTap(event: any) {
     const id = Number(event.currentTarget.dataset.id)
     const eventService = require('../../utils/eventService')
     eventService.openEventDetail(id)
-  },
-
-  openBooking() {
-    wx.showToast({ title: '进入预约流程（示例）', icon: 'none' })
-    // TODO: 可跳转到预约页面或打开预约弹层
   }
 })

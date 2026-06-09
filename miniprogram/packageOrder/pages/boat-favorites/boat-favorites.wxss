@@ -1,0 +1,78 @@
+@import "../booking-orders/booking-orders.wxss";
+
+.skeleton-wrap {
+  padding: 24rpx;
+}
+
+.empty-icon {
+  font-size: 56rpx;
+  line-height: 1;
+  margin-bottom: 16rpx;
+}
+
+.empty-hint {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #999999;
+}
+
+.empty-btn {
+  margin-top: 32rpx;
+  padding: 16rpx 48rpx;
+  background: #0b4f8c;
+  color: #ffffff;
+  font-size: 28rpx;
+  border-radius: 999rpx;
+}
+
+.boat-card {
+  display: flex;
+  flex-direction: row;
+  background: #ffffff;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 24rpx;
+  box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+}
+
+.boat-cover {
+  width: 200rpx;
+  height: 200rpx;
+  flex-shrink: 0;
+  background: #e8e8e8;
+}
+
+.boat-main {
+  flex: 1;
+  min-width: 0;
+  padding: 20rpx 24rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.boat-score {
+  font-size: 22rpx;
+  color: #0c6dff;
+  background: #e8f2ff;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.boat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8rpx;
+}
+
+.boat-price {
+  font-size: 30rpx;
+  font-weight: 700;
+  color: #d4380d;
+}
+
+.menu-arrow {
+  font-size: 40rpx;
+  color: #cccccc;
+}
