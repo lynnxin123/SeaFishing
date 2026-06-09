@@ -1,0 +1,336 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum BookingStatus {
+  pending_pay
+  pending_accept
+  accepted
+  departed
+  completed
+  cancelled
+}
+
+enum CompetitionStatus {
+  draft
+  upcoming
+  registering
+  ended
+}
+
+model User {
+  id        String   @id @default(cuid())
+  openid    String   @unique
+  nickName  String   @default("微信用户") @map("nick_name")
+  avatarUrl String   @default("") @map("avatar_url")
+  phone     String   @default("")
+  verified  Boolean  @default(false)
+  realName  String   @default("") @map("real_name")
+  idType    String   @default("身份证") @map("id_type")
+  idNumber  String   @default("") @map("id_number")
+  levelName String   @default("青铜钓手") @map("level_name")
+  medals    Int      @default(0)
+  points    Int      @default(0)
+  fishFood  Int      @default(5) @map("fish_food")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bookings                  Booking[]
+  competitionRegs           CompetitionRegistration[]
+  mapFavorites              MapFavorite[]
+  boatReviews               BoatReview[]
+  boatFavorites             BoatFavorite[]
+  rewardLogs                RewardLog[]
+  competitionMeasures       CompetitionMeasureRecord[]
+  competitionWeights        CompetitionWeightRecord[]
+  competitionFeedbacks      CompetitionFeedback[]
+  competitionRankings       CompetitionRanking[]
+
+  @@map("users")
+}
+
+model Boat {
+  id            String   @id @default(cuid())
+  boatId        String   @unique @map("boat_id")
+  shipName      String   @map("ship_name")
+  maxNum        Int      @default(8) @map("max_num")
+  shipLen       Float?   @map("ship_len")
+  shipWid       Float?   @map("ship_wid")
+  score         Float    @default(4.5)
+  sailCount     Int      @default(0) @map("sail_count")
+  experience    Int      @default(5)
+  captain       String   @default("")
+  captainAvatar String   @default("/images/captain.jpg") @map("captain_avatar")
+  price         Float    @default(0)
+  wharf         String   @default("大连码头")
+  displayWharf  String   @default("大连码头") @map("display_wharf")
+  facilities    Json     @default("[]")
+  images        Json     @default("[]")
+  description   String   @default("") @db.Text
+  contact       String   @default("")
+  builtYear     Int?     @map("built_year")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  bookings    Booking[]
+  spotLinks   SpotBoatLink[]
+  reviews     BoatReview[]
+  favorites   BoatFavorite[]
+
+  @@index([wharf])
+  @@index([active])
+  @@index([active, score])
+  @@index([active, price])
+  @@map("boats")
+}
+
+model Booking {
+  id           String        @id @default(cuid())
+  orderNo      String        @unique @map("order_no")
+  userId       String        @map("user_id")
+  boatId       String?       @map("boat_id")
+  shipName     String        @map("ship_name")
+  coverImage   String        @default("/images/boat1.jpg") @map("cover_image")
+  price        String        @default("")
+  wharf        String        @default("")
+  departWharf  String        @default("") @map("depart_wharf")
+  date         String
+  people       Int           @default(1)
+  captainName  String        @default("") @map("captain_name")
+  status       BookingStatus @default(pending_accept)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boat Boat? @relation(fields: [boatId], references: [id], onDelete: SetNull)
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@map("bookings")
+}
+
+model FishingSpot {
+  id            String   @id @default(cuid())
+  spotKey       String   @unique @map("spot_key")
+  name          String
+  type          String
+  latitude      Float
+  longitude     Float
+  depth         String   @default("")
+  fishSpecies   Json     @default("[]") @map("fish_species")
+  bestMonths    String   @default("") @map("best_months")
+  chargeType    String   @default("paid") @map("charge_type")
+  priceNote     String   @default("") @map("price_note")
+  seaRange      String   @default("near") @map("sea_range")
+  windSensitive Boolean  @default(false) @map("wind_sensitive")
+  eventId       Int?     @map("event_id")
+  eventTitle    String   @default("") @map("event_title")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  boatLinks SpotBoatLink[]
+  favorites MapFavorite[]
+
+  @@index([active])
+  @@map("fishing_spots")
+}
+
+model SpotBoatLink {
+  spotId String @map("spot_id")
+  boatId String @map("boat_id")
+
+  spot FishingSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+  boat Boat        @relation(fields: [boatId], references: [id], onDelete: Cascade)
+
+  @@id([spotId, boatId])
+  @@index([boatId])
+  @@map("spot_boat_links")
+}
+
+model MapFavorite {
+  userId String @map("user_id")
+  spotId String @map("spot_id")
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  spot FishingSpot @relation(fields: [spotId], references: [id], onDelete: Cascade)
+
+  @@id([userId, spotId])
+  @@index([userId])
+  @@map("map_favorites")
+}
+
+model Competition {
+  id         String            @id @default(cuid())
+  legacyId   Int               @unique @map("legacy_id")
+  enLabel    String            @default("COMPETITION FOR SEA") @map("en_label")
+  name       String
+  cover      String            @default("")
+  status     CompetitionStatus @default(upcoming)
+  statusText String            @default("即将开赛") @map("status_text")
+  location   String            @default("")
+  time       String            @default("")
+  fee        String            @default("待定")
+  summary    String            @default("") @db.Text
+  intro      String            @default("") @db.Text
+  rules      Json              @default("[]")
+  prizes     String            @default("") @db.Text
+  organizer  String            @default("海发海岛海钓")
+  active     Boolean           @default(true)
+  createdAt  DateTime          @default(now()) @map("created_at")
+  updatedAt  DateTime          @updatedAt @map("updated_at")
+
+  registrations CompetitionRegistration[]
+  measures      CompetitionMeasureRecord[]
+  weights       CompetitionWeightRecord[]
+  rankings      CompetitionRanking[]
+
+  @@index([active, legacyId])
+  @@map("competitions")
+}
+
+model CompetitionRegistration {
+  id               String   @id @default(cuid())
+  competitionId    String   @map("competition_id")
+  userId           String   @map("user_id")
+  realName         String   @map("real_name")
+  phone            String
+  people           Int      @default(1)
+  emergencyContact String   @default("") @map("emergency_contact")
+  remark           String   @default("") @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+  @@index([competitionId])
+  @@index([userId])
+  @@map("competition_registrations")
+}
+
+model BoatReview {
+  id        String   @id @default(cuid())
+  boatId    String   @map("boat_id")
+  userId    String   @map("user_id")
+  nickName  String   @default("") @map("nick_name")
+  score     Int      @default(5)
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  boat Boat @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boatId])
+  @@index([boatId, createdAt])
+  @@map("boat_reviews")
+}
+
+model BoatFavorite {
+  userId    String   @map("user_id")
+  boatId    String   @map("boat_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boat Boat @relation(fields: [boatId], references: [id], onDelete: Cascade)
+
+  @@id([userId, boatId])
+  @@map("boat_favorites")
+}
+
+model RewardLog {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String
+  points    Int      @default(0)
+  medals    Int      @default(0)
+  fishFood  Int      @default(0) @map("fish_food")
+  remark    String   @default("")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, type, createdAt])
+  @@map("reward_logs")
+}
+
+model CompetitionMeasureRecord {
+  id            String   @id @default(cuid())
+  competitionId String   @map("competition_id")
+  userId        String   @map("user_id")
+  fishLengthCm  Float    @map("fish_length_cm")
+  fishSpecies   String   @default("") @map("fish_species")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([competitionId, userId])
+  @@map("competition_measure_records")
+}
+
+model CompetitionWeightRecord {
+  id            String   @id @default(cuid())
+  competitionId String   @map("competition_id")
+  userId        String   @map("user_id")
+  weightKg      Float    @map("weight_kg")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([competitionId, userId])
+  @@map("competition_weight_records")
+}
+
+model CompetitionFeedback {
+  id            String   @id @default(cuid())
+  type          String
+  userId        String   @map("user_id")
+  competitionId String?  @map("competition_id")
+  content       String   @db.Text
+  status        String   @default("pending")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+  @@map("competition_feedbacks")
+}
+
+model CompetitionRanking {
+  id            String   @id @default(cuid())
+  competitionId String   @map("competition_id")
+  userId        String   @map("user_id")
+  displayName   String   @map("display_name")
+  totalScore    Float    @default(0) @map("total_score")
+  rank          Int      @default(0)
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([competitionId, userId])
+  @@index([competitionId, rank])
+  @@map("competition_rankings")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  imageUrl  String   @map("image_url")
+  title     String   @default("")
+  subtitle  String   @default("")
+  sortOrder Int      @default(0) @map("sort_order")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([active, sortOrder])
+  @@map("banners")
+}

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>海钓管理后台</title>
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <style>
+    body { margin: 0; background: #f0f4f8; font-family: "Segoe UI", sans-serif; }
+    .login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+    .login-card { width: 380px; }
+    .layout { min-height: 100vh; }
+    .header { background: #0b4f8c; color: #fff; padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .main { padding: 20px; }
+    .toolbar { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/element-plus/dist/index.full.min.js"></script>
+  <script>
+    const { createApp, ref, reactive, onMounted } = Vue;
+    const API_BASE = '/api';
+
+    function getAdminToken() {
+      return localStorage.getItem('adminToken') || '';
+    }
+
+    async function api(path, options) {
+      options = options || {};
+      const headers = Object.assign(
+        { 'Content-Type': 'application/json' },
+        options.headers || {}
+      );
+      const token = getAdminToken();
+      if (token) headers.Authorization = 'Bearer ' + token;
+      const res = await fetch(API_BASE + path, {
+        method: options.method || 'GET',
+        headers,
+        body: options.body ? JSON.stringify(options.body) : undefined
+      });
+      const data = await res.json().catch(function () { return {}; });
+      if (!res.ok) {
+        throw new Error(data.message || '请求失败');
+      }
+      return data;
+    }
+
+    const LoginPage = {
+      emits: ['logged-in'],
+      setup(_, { emit }) {
+        const form = reactive({ username: 'admin', password: 'admin123' });
+        const loading = ref(false);
+        async function submit() {
+          loading.value = true;
+          try {
+            const data = await api('/admin/auth/login', {
+              method: 'POST',
+              body: form
+            });
+            localStorage.setItem('adminToken', data.token);
+            emit('logged-in');
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.message || '登录失败');
+          } finally {
+            loading.value = false;
+          }
+        }
+        return { form, loading, submit };
+      },
+      template: `
+        <div class="login-wrap">
+          <el-card class="login-card" header="海钓管理后台">
+            <el-form label-width="70px">
+              <el-form-item label="账号"><el-input v-model="form.username" /></el-form-item>
+              <el-form-item label="密码"><el-input v-model="form.password" type="password" show-password /></el-form-item>
+              <el-button type="primary" style="width:100%" :loading="loading" @click="submit">登录</el-button>
+            </el-form>
+          </el-card>
+        </div>
+      `
+    };
+
+    const DashboardPage = {
+      setup() {
+        const activeTab = ref('bookings');
+        const bookings = ref([]);
+        const boats = ref([]);
+        const competitions = ref([]);
+        const registrations = ref([]);
+        const bookingStatus = ref('all');
+        const selectedLegacyId = ref('');
+        const bookingPage = ref(1);
+        const bookingTotal = ref(0);
+        const boatPage = ref(1);
+        const boatTotal = ref(0);
+        const regPage = ref(1);
+        const regTotal = ref(0);
+        const pageSize = 50;
+
+        function pageQuery(page) {
+          return '?page=' + page + '&pageSize=' + pageSize;
+        }
+
+        async function loadBookings() {
+          try {
+            var q = pageQuery(bookingPage.value);
+            if (bookingStatus.value !== 'all') {
+              q += '&status=' + bookingStatus.value;
+            }
+            const data = await api('/admin/bookings' + q);
+            bookings.value = data.items || [];
+            bookingTotal.value = data.total || 0;
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.message || '加载订单失败');
+            bookings.value = [];
+            bookingTotal.value = 0;
+          }
+        }
+
+        async function loadBoats() {
+          const data = await api('/admin/boats' + pageQuery(boatPage.value));
+          boats.value = data.items || [];
+          boatTotal.value = data.total || 0;
+        }
+
+        async function loadCompetitions() {
+          try {
+            competitions.value = await api('/admin/competitions');
+            if (competitions.value.length && !selectedLegacyId.value) {
+              selectedLegacyId.value = String(competitions.value[0].legacyId);
+            }
+            if (selectedLegacyId.value) {
+              await loadRegistrations();
+            }
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.message || '加载赛事失败');
+            competitions.value = [];
+          }
+        }
+
+        async function loadRegistrations() {
+          if (!selectedLegacyId.value) {
+            registrations.value = [];
+            return;
+          }
+          try {
+            const data = await api(
+              '/admin/competitions/' + selectedLegacyId.value + '/registrations' + pageQuery(regPage.value)
+            );
+            registrations.value = data.items || [];
+            regTotal.value = data.total || 0;
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.message || '加载报名名单失败');
+            registrations.value = [];
+            regTotal.value = 0;
+          }
+        }
+
+        function onBookingPageChange(page) {
+          bookingPage.value = page;
+          loadBookings();
+        }
+
+        function onBoatPageChange(page) {
+          boatPage.value = page;
+          loadBoats();
+        }
+
+        function onRegPageChange(page) {
+          regPage.value = page;
+          loadRegistrations();
+        }
+
+        function onBookingStatusChange() {
+          bookingPage.value = 1;
+          loadBookings();
+        }
+
+        function onCompetitionChange() {
+          regPage.value = 1;
+          loadRegistrations();
+        }
+
+        function onTabChange(name) {
+          if (name === 'competitions') {
+            loadCompetitions();
+          }
+        }
+
+        function competitionLabel(item) {
+          var count = item._count && item._count.registrations ? item._count.registrations : 0;
+          return item.name + '（' + count + '人）';
+        }
+
+        async function updateBookingStatus(row, status) {
+          await api('/admin/bookings/' + row.id + '/status', {
+            method: 'PATCH',
+            body: { status }
+          });
+          ElementPlus.ElMessage.success('订单状态已更新');
+          loadBookings();
+        }
+
+        function logout() {
+          localStorage.removeItem('adminToken');
+          location.reload();
+        }
+
+        onMounted(function () {
+          loadBookings();
+          loadBoats();
+          loadCompetitions();
+        });
+
+        return {
+          activeTab,
+          bookings,
+          boats,
+          competitions,
+          registrations,
+          bookingStatus,
+          selectedLegacyId,
+          bookingPage,
+          bookingTotal,
+          boatPage,
+          boatTotal,
+          regPage,
+          regTotal,
+          pageSize,
+          loadBookings,
+          loadBoats,
+          loadCompetitions,
+          loadRegistrations,
+          updateBookingStatus,
+          onTabChange,
+          onBookingPageChange,
+          onBoatPageChange,
+          onRegPageChange,
+          onBookingStatusChange,
+          onCompetitionChange,
+          competitionLabel,
+          logout
+        };
+      },
+      template: `
+        <div class="layout">
+          <div class="header">
+            <strong>海发海钓 · 管理后台</strong>
+            <el-button link style="color:#fff" @click="logout">退出登录</el-button>
+          </div>
+          <div class="main">
+            <el-tabs v-model="activeTab" @tab-change="onTabChange">
+              <el-tab-pane label="预约订单" name="bookings">
+                <div class="toolbar">
+                  <el-select v-model="bookingStatus" style="width:160px" @change="onBookingStatusChange">
+                    <el-option label="全部" value="all" />
+                    <el-option label="待接单" value="pending_accept" />
+                    <el-option label="已接单" value="accepted" />
+                    <el-option label="已出港" value="departed" />
+                    <el-option label="已完成" value="completed" />
+                  </el-select>
+                  <el-button @click="loadBookings">刷新</el-button>
+                </div>
+                <el-table :data="bookings" stripe>
+                  <el-table-column prop="orderNo" label="订单号" width="180" />
+                  <el-table-column prop="shipName" label="船舶" />
+                  <el-table-column prop="date" label="日期" width="120" />
+                  <el-table-column prop="people" label="人数" width="70" />
+                  <el-table-column prop="status" label="状态" width="120" />
+                  <el-table-column label="操作" width="260">
+                    <template #default="{ row }">
+                      <el-button size="small" @click="updateBookingStatus(row, 'accepted')">接单</el-button>
+                      <el-button size="small" @click="updateBookingStatus(row, 'departed')">出港</el-button>
+                      <el-button size="small" @click="updateBookingStatus(row, 'completed')">完成</el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination
+                  v-if="bookingTotal > pageSize"
+                  style="margin-top:16px"
+                  background
+                  layout="prev, pager, next, total"
+                  :total="bookingTotal"
+                  :page-size="pageSize"
+                  :current-page="bookingPage"
+                  @current-change="onBookingPageChange"
+                />
+              </el-tab-pane>
+
+              <el-tab-pane label="船只管理" name="boats">
+                <div class="toolbar"><el-button @click="loadBoats">刷新</el-button></div>
+                <el-table :data="boats" stripe>
+                  <el-table-column prop="boatId" label="编号" width="120" />
+                  <el-table-column prop="shipName" label="船名" />
+                  <el-table-column prop="captain" label="船长" width="100" />
+                  <el-table-column prop="wharf" label="码头" width="120" />
+                  <el-table-column prop="price" label="价格" width="90" />
+                  <el-table-column prop="active" label="上架" width="80">
+                    <template #default="{ row }">{{ row.active ? '是' : '否' }}</template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination
+                  v-if="boatTotal > pageSize"
+                  style="margin-top:16px"
+                  background
+                  layout="prev, pager, next, total"
+                  :total="boatTotal"
+                  :page-size="pageSize"
+                  :current-page="boatPage"
+                  @current-change="onBoatPageChange"
+                />
+              </el-tab-pane>
+
+              <el-tab-pane label="赛事报名" name="competitions">
+                <div class="toolbar">
+                  <el-select v-model="selectedLegacyId" placeholder="选择赛事" style="width:280px" @change="onCompetitionChange">
+                    <el-option
+                      v-for="item in competitions"
+                      :key="item.id"
+                      :label="competitionLabel(item)"
+                      :value="String(item.legacyId)"
+                    />
+                  </el-select>
+                  <el-button @click="loadCompetitions">刷新</el-button>
+                </div>
+                <p v-if="!selectedLegacyId" style="color:#888;margin-bottom:12px;">请先在上方选择赛事，报名名单会显示在下方</p>
+                <el-table :data="registrations" stripe>
+                  <el-table-column prop="realName" label="姓名" width="100" />
+                  <el-table-column prop="phone" label="手机" width="130" />
+                  <el-table-column prop="people" label="人数" width="70" />
+                  <el-table-column prop="emergencyContact" label="紧急联系人" />
+                  <el-table-column prop="remark" label="备注" />
+                  <el-table-column prop="createdAt" label="报名时间" width="180">
+                    <template #default="{ row }">{{ row.createdAt ? String(row.createdAt).replace('T',' ').slice(0,19) : '' }}</template>
+                  </el-table-column>
+                </el-table>
+                <el-pagination
+                  v-if="regTotal > pageSize"
+                  style="margin-top:16px"
+                  background
+                  layout="prev, pager, next, total"
+                  :total="regTotal"
+                  :page-size="pageSize"
+                  :current-page="regPage"
+                  @current-change="onRegPageChange"
+                />
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+        </div>
+      `
+    };
+
+    createApp({
+      components: { LoginPage, DashboardPage },
+      setup() {
+        const authed = ref(!!getAdminToken());
+        function onLoggedIn() {
+          authed.value = true;
+        }
+        return { authed, onLoggedIn };
+      },
+      template: `
+        <LoginPage v-if="!authed" @logged-in="onLoggedIn" />
+        <DashboardPage v-else />
+      `
+    }).use(ElementPlus).mount('#app');
+  </script>
+</body>
+</html>
