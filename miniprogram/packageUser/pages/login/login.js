@@ -14,7 +14,9 @@ Page({
     agreed: false,
     notAgreed: true,
     userAgreementLabel: '\u300a\u7528\u6237\u534f\u8bae\u300b',
-    privacyPolicyLabel: '\u300a\u9690\u79c1\u653f\u7b56\u300b'
+    privacyPolicyLabel: '\u300a\u9690\u79c1\u653f\u7b56\u300b',
+    showDevAccounts: false,
+    devAccounts: []
   },
 
   onLoad(options) {
@@ -22,6 +24,17 @@ Page({
     this._redirect = options.redirect ? decodeURIComponent(options.redirect) : '';
     this._pendingProfile = null;
     this._loggingIn = false;
+    this._testCode = '';
+    var api = require('../../../config/api');
+    this.setData({
+      showDevAccounts:
+        isDevtools() &&
+        api.USE_API &&
+        api.SHOW_DEV_ACCOUNTS === true &&
+        api.TEST_ACCOUNTS &&
+        api.TEST_ACCOUNTS.length > 0,
+      devAccounts: api.TEST_ACCOUNTS || []
+    });
   },
 
   onBack() {
@@ -104,16 +117,33 @@ Page({
     });
   },
 
-  loginWithUserProfile(phoneCode) {
+  onDevAccountLogin(e) {
+    if (!this.data.agreed) {
+      wx.showToast({ title: '请先同意用户协议与隐私政策', icon: 'none' });
+      return;
+    }
+    var code = e.currentTarget.dataset.code;
+    var nickName = e.currentTarget.dataset.name || '测试用户';
+    if (!code) return;
+    this._testCode = code;
+    this.loginWithUserProfile('', {
+      nickName: nickName,
+      avatarUrl: ''
+    });
+  },
+
+  loginWithUserProfile(phoneCode, presetProfile) {
     if (this._loggingIn) {
       return;
     }
     this._loggingIn = true;
     var self = this;
+    var testCode = this._testCode || '';
 
     function finish(profile) {
       self._pendingProfile = null;
       self._loggingIn = false;
+      self._testCode = '';
       wx.showToast({ title: '登录成功', icon: 'success' });
       setTimeout(function () {
         self.finishLogin();
@@ -122,15 +152,21 @@ Page({
 
     function fail(err) {
       self._loggingIn = false;
+      self._testCode = '';
       var msg = (err && err.message) || '登录失败，请稍后重试';
       wx.showToast({ title: msg, icon: 'none', duration: 2500 });
     }
 
     function startLogin(profile) {
       auth
-        .loginWithBackend(profile, phoneCode || '')
+        .loginWithBackend(profile, phoneCode || '', { testCode: testCode })
         .then(finish)
         .catch(fail);
+    }
+
+    if (presetProfile) {
+      startLogin(presetProfile);
+      return;
     }
 
     if (self._pendingProfile) {

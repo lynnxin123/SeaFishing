@@ -105,7 +105,6 @@
       markers="{{markers}}"
       subkey="{{mapSubkey}}"
       setting="{{mapSetting}}"
-      show-location
       bindmarkertap="onMarkerTap"
     >
       <cover-view class="map-legend">

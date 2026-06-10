@@ -210,6 +210,70 @@ async function main() {
     });
   }
 
+  var DEFAULT_RULES = {
+    minBookingLeadHours: 2,
+    maxBookingsIn7Days: 2,
+    cancelTiers: [
+      { minHours: 72, refundPercent: 100, canCancel: true, label: '出航前72小时以上，全额退款' },
+      { minHours: 48, refundPercent: 50, canCancel: true, label: '出航前48-72小时，退款50%' },
+      { minHours: 24, refundPercent: 20, canCancel: true, label: '出航前24-48小时，退款20%' },
+      { minHours: 0, refundPercent: 0, canCancel: false, label: '出航前24小时内，不可取消' }
+    ],
+    holidayNoCancel: true,
+    holidays: [],
+    noShowPenalty: { count2RestrictDays: 7, count3RestrictDays: 30 }
+  };
+
+  await prisma.bookingRuleConfig.upsert({
+    where: { id: 'default' },
+    update: { rules: DEFAULT_RULES },
+    create: { id: 'default', rules: DEFAULT_RULES }
+  });
+
+  var SAIL_SLOTS = [
+    { slotKey: 'morning', slotTime: '08:00', label: '早班 08:00', sortOrder: 1 },
+    { slotKey: 'afternoon', slotTime: '13:00', label: '午班 13:00', sortOrder: 2 }
+  ];
+
+  var slotMap = new Map();
+  for (var si = 0; si < SAIL_SLOTS.length; si++) {
+    var slotRow = SAIL_SLOTS[si];
+    var savedSlot = await prisma.sailSlot.upsert({
+      where: { slotKey: slotRow.slotKey },
+      update: slotRow,
+      create: slotRow
+    });
+    slotMap.set(slotRow.slotKey, savedSlot.id);
+  }
+
+  var allBoats = await prisma.boat.findMany();
+  for (var bi = 0; bi < allBoats.length; bi++) {
+    var b = allBoats[bi];
+    for (var sj = 0; sj < SAIL_SLOTS.length; sj++) {
+      var s = SAIL_SLOTS[sj];
+      var slotId = slotMap.get(s.slotKey);
+      await prisma.boatSailConfig.upsert({
+        where: { boatId_sailSlotId: { boatId: b.id, sailSlotId: slotId } },
+        update: {
+          maxPeople: b.maxNum,
+          maxOrders: s.slotKey === 'morning' ? 2 : 2,
+          priceShared: b.price,
+          priceCharter: Math.round(b.price * b.maxNum * 0.9),
+          active: true
+        },
+        create: {
+          boatId: b.id,
+          sailSlotId: slotId,
+          maxPeople: b.maxNum,
+          maxOrders: 2,
+          priceShared: b.price,
+          priceCharter: Math.round(b.price * b.maxNum * 0.9),
+          active: true
+        }
+      });
+    }
+  }
+
   await prisma.banner.deleteMany();
   await prisma.banner.createMany({
     data: [

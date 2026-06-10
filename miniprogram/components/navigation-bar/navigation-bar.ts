@@ -34,6 +34,10 @@ Component({
       type: Boolean,
       value: false,
     },
+    homeTab: {
+      type: String,
+      value: '/pages/index/index',
+    },
     animated: {
       // 显示隐藏的时候opacity动画效果
       type: Boolean,
@@ -94,12 +98,34 @@ Component({
     },
     back() {
       const data = this.data
-      if (data.delta) {
-        wx.navigateBack({
-          delta: data.delta
+      const homeTab = data.homeTab || '/pages/index/index'
+      const goHome = () => {
+        wx.switchTab({
+          url: homeTab,
+          fail: () => {
+            wx.reLaunch({ url: homeTab })
+          }
         })
       }
+      if (data.delta) {
+        wx.navigateBack({
+          delta: data.delta,
+          fail: goHome
+        })
+      } else {
+        goHome()
+      }
       this.triggerEvent('back', { delta: data.delta }, {})
+    },
+    home() {
+      const homeTab = this.data.homeTab || '/pages/index/index'
+      wx.switchTab({
+        url: homeTab,
+        fail: function () {
+          wx.reLaunch({ url: homeTab })
+        }
+      })
+      this.triggerEvent('home', {}, {})
     }
   },
 })

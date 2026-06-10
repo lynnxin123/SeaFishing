@@ -35,6 +35,22 @@ function typeLabel(type) {
   return '钓点';
 }
 
+/** 微信 map marker.id 须为稳定数字，与筛选顺序无关 */
+var _markerIdBySpotId = {};
+function stableMarkerId(spotId) {
+  if (_markerIdBySpotId[spotId]) {
+    return _markerIdBySpotId[spotId];
+  }
+  var s = String(spotId);
+  var hash = 0;
+  for (var i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash + s.charCodeAt(i)) | 0;
+  }
+  var id = (Math.abs(hash) % 900000000) + 1;
+  _markerIdBySpotId[spotId] = id;
+  return id;
+}
+
 var initialMarineBlock = marineConditions.getConditionsForDate(getTodayYmd());
 
 Page({
@@ -44,7 +60,7 @@ Page({
     mapSetting: {
       enableZoom: true,
       enableScroll: true,
-      showLocation: true
+      showLocation: false
     },
     centerLat: DALIAN_CENTER.latitude,
     centerLng: DALIAN_CENTER.longitude,
@@ -112,8 +128,7 @@ Page({
     }
     this._lastWindBlocked = initialMarineBlock.windBlocked;
     this._lastWeatherDate = getTodayYmd();
-    this.setData({ favoritesOnly: favoritesOnly });
-    this.applyFilters();
+    this.setData({ favoritesOnly: favoritesOnly, spotList: [], markers: [] });
     var self = this;
     var spotsReady = fishingSpots.fetchSpots().then(function () {
       self.invalidateSpotBase();
@@ -192,6 +207,9 @@ Page({
 
     var self = this;
     mapFavorites.toggleFavorite(spotId).then(function (favorited) {
+      try {
+        require('../../utils/pageRefresh').resetRefresh('map-favorites');
+      } catch (e) {}
       if (favorited) {
         wx.showToast({ title: '已收藏', icon: 'none' });
       }
@@ -230,6 +248,11 @@ Page({
   },
 
   locateUser: function (done) {
+    if (this._locating) {
+      if (done) done();
+      return;
+    }
+    this._locating = true;
     var self = this;
     wx.getLocation({
       type: 'gcj02',
@@ -242,9 +265,11 @@ Page({
           centerLng: res.longitude,
           scale: 11
         });
+        self._locating = false;
         if (done) done();
       },
       fail: function () {
+        self._locating = false;
         wx.showToast({ title: '未获取定位，已显示大连海域', icon: 'none' });
         self.setData({
           hasLocation: false,
@@ -337,7 +362,7 @@ Page({
       var row = filtered[k];
       var iconKey = row.eventId ? 'event' : row.type;
       var marker = {
-        id: k + 1,
+        id: stableMarkerId(row.id),
         spotId: row.id,
         latitude: spotIndex[row.id].latitude,
         longitude: spotIndex[row.id].longitude,
@@ -491,6 +516,9 @@ Page({
 
     var self = this;
     mapFavorites.toggleFavorite(spot.id).then(function (favorited) {
+      try {
+        require('../../utils/pageRefresh').resetRefresh('map-favorites');
+      } catch (e) {}
       self.setData({ 'selectedSpot.favorited': favorited });
       wx.showToast({ title: favorited ? '已收藏' : '已取消收藏', icon: 'none' });
       self.invalidateSpotBase();

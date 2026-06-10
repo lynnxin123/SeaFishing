@@ -9,12 +9,13 @@ App<IAppOption>({
     auth.syncLoginState()
     if (wx.getStorageSync('token')) {
       auth.refreshProfileFromServer({ minIntervalMs: 60000 })
+      require('./utils/messageService').refreshTabBarBadge()
       setTimeout(function () {
         const bookingOrders = require('./utils/bookingOrders')
         bookingOrders.syncLocalOrdersToServer()
-        const mapFavorites = require('./utils/mapFavorites')
-        mapFavorites.syncFromServerIfStale(60000)
       }, 2000)
+    } else {
+      require('./utils/messageService').syncTabBarBadge(0)
     }
   },
 })

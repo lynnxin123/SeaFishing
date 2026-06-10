@@ -69,7 +69,7 @@ function syncFromServer() {
   }
   var request = require('./request');
   _syncPromise = request
-    .get('/favorites/keys')
+    .get('/favorites/keys', null, { cacheTtlMs: 30000 })
     .then(function (list) {
       if (Array.isArray(list)) {
         saveFavoriteIds(list);
@@ -131,6 +131,8 @@ function toggleFavorite(spotId) {
         list.splice(idx, 1);
       }
       saveFavoriteIds(list);
+      _lastKeysSyncAt = Date.now();
+      request.invalidateGetCache('/favorites/keys');
       return willFavorite;
     });
   });

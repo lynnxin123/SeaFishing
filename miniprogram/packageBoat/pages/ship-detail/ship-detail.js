@@ -1,6 +1,7 @@
 var auth = require('../../../utils/auth');
 var bookingOrders = require('../../../utils/bookingOrders');
 var boatSocial = require('../../../utils/boatSocial');
+var contactUtil = require('../../../utils/contact');
 
 const DEFAULT_SHIP = {
   shipName: '辽长渔休55210',
@@ -41,6 +42,20 @@ function formatDate(date) {
   return y + '-' + m + '-' + d;
 }
 
+function pickFirstSlot(slots, bookingType) {
+  if (!slots || !slots.length) return null;
+  var key = bookingType === 'charter' ? 'availableCharter' : 'availableShared';
+  for (var i = 0; i < slots.length; i++) {
+    if (slots[i][key]) return slots[i];
+  }
+  return null;
+}
+
+function isSlotAvailable(slot, bookingType) {
+  if (!slot) return false;
+  return bookingType === 'charter' ? !!slot.availableCharter : !!slot.availableShared;
+}
+
 Page({
   data: {
     tabs: ['船舶介绍', '海钓提示', '退改规则', '评价'],
@@ -51,7 +66,17 @@ Page({
     ship: null,
     showBookingSheet: false,
     bookingDate: '',
-    bookingPeople: '1'
+    bookingPeople: '1',
+    bookingPhone: '',
+    bookingWechat: '',
+    bookingType: 'shared',
+    slotList: [],
+    selectedSlotId: '',
+    selectedSlotTime: '',
+    rulesSummary: null,
+    slotsLoading: false,
+    slotsLoadError: '',
+    isTestAccount: false
   },
 
   onLoad(options) {
@@ -103,7 +128,7 @@ Page({
     var featuredBoats = require('../../../utils/featuredBoats');
     this._pendingBoatId = boatId;
 
-    function applyShip(ship) {
+    function applyShip(ship, favorited) {
       if (!ship) {
         self.setData({
           pageState: 'error',
@@ -112,7 +137,7 @@ Page({
         return;
       }
       self._loadedFromChannel = true;
-      self.initShip(ship);
+      self.initShip(ship, favorited);
     }
 
     this.setData({ pageState: 'loading', loadError: '' });
@@ -155,13 +180,37 @@ Page({
     };
   },
 
+  _resetPageOverlay() {
+    try {
+      wx.hideLoading();
+      wx.hideToast();
+    } catch (e) {}
+    this._openBookingWhenReady = false;
+    this._bookingSubmitting = false;
+    if (this.data.showBookingSheet) {
+      this.setData({ showBookingSheet: false });
+    }
+  },
+
+  onHide() {
+    this._resetPageOverlay();
+  },
+
   onShow() {
-    if (!bookingOrders.consumePendingBookAfterVerify() || !auth.isLoggedIn()) {
+    var pendingOpen = bookingOrders.consumePendingBookAfterVerify();
+    if (!pendingOpen || !auth.isLoggedIn()) {
+      this._resetPageOverlay();
       return;
     }
     if (!auth.isVerified()) {
+      this._resetPageOverlay();
       bookingOrders.setPendingBookAfterVerify(true);
       auth.promptVerify({ from: 'book' });
+      return;
+    }
+    var ship = this.data.ship;
+    if (!ship || !ship.boatId || this.data.pageState !== 'ready') {
+      this._openBookingWhenReady = true;
       return;
     }
     this.openBookingSheet();
@@ -198,6 +247,13 @@ Page({
       pageState: 'ready',
       loadError: ''
     });
+    if (this._openBookingWhenReady) {
+      this._openBookingWhenReady = false;
+      this.openBookingSheet();
+    } else if (this.data.showBookingSheet || this._pendingSlotDate) {
+      this.loadBookingSlots(this.data.bookingDate || this._pendingSlotDate, true);
+      this._pendingSlotDate = '';
+    }
     this._reviewsLoaded = false;
     if (typeof favoriteState === 'boolean') {
       this.setData({ favorited: favoriteState });
@@ -245,6 +301,9 @@ Page({
       .toggleFavorite(boatId, this.data.favorited)
       .then(function (favorited) {
         self.setData({ favorited: favorited });
+        try {
+          require('../../../utils/pageRefresh').resetRefresh('boat-favorites');
+        } catch (e) {}
         wx.showToast({
           title: favorited ? '已收藏' : '已取消收藏',
           icon: 'none'
@@ -299,24 +358,146 @@ Page({
   },
 
   openBookingSheet() {
+    bookingOrders.clearReservePending();
     var ctx = bookingOrders.getBookingContext();
+    var date = ctx.date || this.data.bookingDate || formatDate(new Date());
+    var profile = auth.getUserProfile() || {};
+    var self = this;
     this.setData({
       showBookingSheet: true,
-      bookingDate: ctx.date || this.data.bookingDate || formatDate(new Date()),
-      bookingPeople: ctx.people ? String(ctx.people) : '1'
+      bookingDate: date,
+      bookingPeople: ctx.people ? String(ctx.people) : '1',
+      bookingPhone: '',
+      bookingWechat: '',
+      bookingType: 'shared',
+      slotList: [],
+      selectedSlotId: '',
+      selectedSlotTime: '',
+      slotsLoading: true,
+      slotsLoadError: '',
+      isTestAccount: profile.isTestAccount === true || contactUtil.isTestAccount(),
+      rulesSummary: this.data.rulesSummary || null
     });
+    auth.refreshProfileFromServer({ minIntervalMs: 60000 }).then(function (p) {
+      if (!p || p.isTestAccount !== true) return;
+      self.setData({ isTestAccount: true });
+    });
+    this.loadBookingSlots(date);
+    if (!this.data.rulesSummary) {
+      bookingOrders.fetchBookingRules().then(function (rules) {
+        if (rules) {
+          self.setData({ rulesSummary: rules });
+        }
+      });
+    }
   },
 
-  closeBookingSheet() {
-    this.setData({ showBookingSheet: false });
+  loadBookingSlots(date, forceRefresh) {
+    var ship = this.data.ship;
+    if (!ship || !ship.boatId) {
+      this._pendingSlotDate = date;
+      this.setData({ slotsLoading: true, slotsLoadError: '' });
+      return;
+    }
+    var self = this;
+    this._pendingSlotDate = '';
+    this._slotReqId = (this._slotReqId || 0) + 1;
+    var reqId = this._slotReqId;
+    this.setData({ slotsLoading: true, slotsLoadError: '' });
+    bookingOrders
+      .fetchSlotAvailability(ship.boatId, date, { force: !!forceRefresh })
+      .then(function (res) {
+        if (reqId !== self._slotReqId) return;
+        var slots = (res && res.slots) || [];
+        var first = pickFirstSlot(slots, self.data.bookingType);
+        self.setData({
+          slotList: slots,
+          slotsLoading: false,
+          slotsLoadError: '',
+          selectedSlotId: first ? first.sailSlotId : '',
+          selectedSlotTime: first ? first.slotTime : '',
+          rulesSummary: (res && res.rulesSummary) || self.data.rulesSummary
+        });
+      })
+      .catch(function () {
+        if (reqId !== self._slotReqId) return;
+        self.setData({
+          slotsLoading: false,
+          slotList: [],
+          slotsLoadError: '时段加载失败，请重试'
+        });
+      });
+  },
+
+  onRetryLoadSlots() {
+    this.loadBookingSlots(this.data.bookingDate, true);
+  },
+
+  closeBookingSheet(options) {
+    options = options || {};
+    var ctx = bookingOrders.getBookingContext();
+    var fromIndexReserve = ctx && ctx.fromIndexReserve === true;
+    this._openBookingWhenReady = false;
+    bookingOrders.clearReservePending();
+    this.setData({
+      showBookingSheet: false,
+      bookingPhone: '',
+      bookingWechat: ''
+    });
+    if (fromIndexReserve && !options.keepPage) {
+      bookingOrders.saveBookingContext({
+        date: ctx.date,
+        wharf: ctx.wharf,
+        people: ctx.people,
+        keyword: ctx.keyword,
+        fromIndexReserve: false
+      });
+      wx.navigateBack({ delta: 1 });
+    }
   },
 
   onBookingDateChange(e) {
-    this.setData({ bookingDate: e.detail.value });
+    var date = e.detail.value;
+    this.setData({ bookingDate: date });
+    this.loadBookingSlots(date, true);
+  },
+
+  onBookingTypeTap(e) {
+    var type = e.currentTarget.dataset.type;
+    if (!type) return;
+    var first = pickFirstSlot(this.data.slotList, type);
+    this.setData({
+      bookingType: type,
+      selectedSlotId: first ? first.sailSlotId : '',
+      selectedSlotTime: first ? first.slotTime : ''
+    });
+  },
+
+  onSlotTap(e) {
+    var id = e.currentTarget.dataset.id;
+    var time = e.currentTarget.dataset.time;
+    var index = Number(e.currentTarget.dataset.index);
+    var slot = this.data.slotList[index];
+    if (!isSlotAvailable(slot, this.data.bookingType)) {
+      wx.showToast({
+        title: (slot && slot.bookingClosedReason) || '该时段不可预约',
+        icon: 'none'
+      });
+      return;
+    }
+    this.setData({ selectedSlotId: id, selectedSlotTime: time });
   },
 
   onBookingPeopleInput(e) {
     this.setData({ bookingPeople: e.detail.value });
+  },
+
+  onBookingPhoneInput(e) {
+    this.setData({ bookingPhone: e.detail.value });
+  },
+
+  onBookingWechatInput(e) {
+    this.setData({ bookingWechat: e.detail.value });
   },
 
   onConfirmBooking() {
@@ -336,26 +517,70 @@ Page({
       wx.showToast({ title: '超过船舶载客上限', icon: 'none' });
       return;
     }
+    if (!this.data.selectedSlotId) {
+      wx.showToast({ title: '请选择出航时段', icon: 'none' });
+      return;
+    }
+
+    var phone = String(this.data.bookingPhone || '').replace(/^\s+|\s+$/g, '');
+    var wechat = String(this.data.bookingWechat || '').replace(/^\s+|\s+$/g, '');
+    var contactCheck = contactUtil.validateContact(phone, wechat);
+    if (!contactCheck.ok) {
+      wx.showToast({ title: contactCheck.message || '联系方式无效', icon: 'none' });
+      return;
+    }
 
     var ship = this.data.ship;
-    this.closeBookingSheet();
+    var bookingType = this.data.bookingType || 'shared';
+    var slotTime = this.data.selectedSlotTime;
+    var sailSlotId = this.data.selectedSlotId;
+    var typeLabel = bookingType === 'charter' ? '包船' : '散拼';
+    var self = this;
     wx.showModal({
       title: '确认预约',
       content:
         '船舶：' +
         ship.shipName +
+        '\n船型：' +
+        typeLabel +
         '\n出行日期：' +
         date +
+        ' ' +
+        slotTime +
         '\n人数：' +
         people +
-        '人',
+        '人' +
+        '\n\n提交后需先完成付款，船长才会确认接单。',
       confirmText: '确认',
       cancelText: '取消',
       success: function (res) {
         if (!res.confirm) {
           return;
         }
-        bookingOrders.saveBookingContext({
+        auth
+          .saveContactRemote({ phone: phone, wechatId: wechat })
+          .then(function () {
+            return self._submitBookingOrder(ship, date, people, bookingType, slotTime, sailSlotId);
+          })
+          .catch(function (err) {
+            wx.showToast({
+              title: (err && err.message) || '保存联系方式失败',
+              icon: 'none',
+              duration: 2500
+            });
+          });
+      }
+    });
+  },
+
+  _submitBookingOrder(ship, date, people, bookingType, slotTime, sailSlotId) {
+    if (this._bookingSubmitting) {
+      return;
+    }
+    this._bookingSubmitting = true;
+    wx.showLoading({ title: '提交中' });
+    var self = this;
+    bookingOrders.saveBookingContext({
           date: date,
           people: people,
           wharf: ship.departWharf
@@ -370,25 +595,59 @@ Page({
           captainName: ship.captainName,
           date: date,
           people: people,
-          status: 'pending_accept'
-        }).then(function () {
-          bookingOrders.goOrdersAfterSuccess();
-        }).catch(function () {
-          wx.showToast({ title: '预约失败，请重试', icon: 'none' });
+          bookingType: bookingType,
+          sailSlotId: sailSlotId,
+          slotTime: slotTime,
+          status: 'pending_pay'
+        }).then(function (order) {
+          var ctx = bookingOrders.getBookingContext();
+          if (ctx && ctx.fromIndexReserve) {
+            bookingOrders.saveBookingContext({
+              date: ctx.date,
+              wharf: ctx.wharf,
+              people: ctx.people,
+              keyword: ctx.keyword,
+              fromIndexReserve: false
+            });
+          }
+          self.closeBookingSheet({ keepPage: true });
+          self._bookingSubmitting = false;
+          wx.hideLoading({
+            complete: function () {
+              bookingOrders.goOrdersAfterSuccess(order && order.id);
+            }
+          });
+        }).catch(function (err) {
+          self._bookingSubmitting = false;
+          wx.hideLoading();
+          wx.showModal({
+            title: '预约失败',
+            content: (err && err.message) || '请检查网络后重试',
+            showCancel: false,
+            confirmText: '知道了'
+          });
         });
-      }
-    });
+  },
+
+  bookRedirectUrl() {
+    var ship = this.data.ship;
+    if (!ship || !ship.boatId) return '';
+    return (
+      '/packageBoat/pages/ship-detail/ship-detail?boatId=' +
+      encodeURIComponent(ship.boatId)
+    );
   },
 
   onBook() {
+    var redirect = this.bookRedirectUrl();
     if (!auth.isLoggedIn()) {
       bookingOrders.setPendingBookAfterVerify(true);
-      auth.goLogin({ from: 'book' });
+      auth.goLogin({ from: 'book', redirect: redirect });
       return;
     }
     if (!auth.isVerified()) {
       bookingOrders.setPendingBookAfterVerify(true);
-      auth.promptVerify({ from: 'book' });
+      auth.promptVerify({ from: 'book', redirect: redirect });
       return;
     }
     this.openBookingSheet();

@@ -10,6 +10,10 @@ Page({
     loadError: ''
   },
 
+  onLoad(options) {
+    this._forceRefresh = !!(options && options.refresh === '1');
+  },
+
   onShow() {
     if (!auth.isLoggedIn()) {
       wx.showToast({ title: '请先登录', icon: 'none' });
@@ -18,9 +22,19 @@ Page({
       }, 800);
       return;
     }
-    if (!pageRefresh.shouldRefresh('boat-favorites', 30000)) {
+    if (this._forceRefresh) {
+      this._forceRefresh = false;
+      pageRefresh.resetRefresh('boat-favorites');
+      this.loadList();
       return;
     }
+    if (!this.data.list.length || pageRefresh.shouldRefresh('boat-favorites', 30000)) {
+      this.loadList();
+    }
+  },
+
+  onRetry() {
+    pageRefresh.resetRefresh('boat-favorites');
     this.loadList();
   },
 

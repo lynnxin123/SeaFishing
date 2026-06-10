@@ -10,7 +10,7 @@
       <text class="empty-icon" aria-hidden="true">⚠</text>
       <text class="empty-text">{{loadError}}</text>
       <text class="empty-hint">请检查网络后重试</text>
-      <view class="empty-btn" bindtap="loadList">重新加载</view>
+      <view class="empty-btn" bindtap="onRetry">重新加载</view>
     </view>
 
     <view wx:elif="{{isEmpty}}" class="empty-wrap">

@@ -7,19 +7,20 @@ var STATUS_LABEL = {
   pending_pay: '待付款',
   pending_accept: '待接单',
   accepted: '已接单',
-  departed: '已出港',
+  departed: '待出海',
   completed: '已完成',
-  cancelled: '已取消'
+  cancelled: '已取消',
+  no_show: '爽约'
 };
 
 var ORDER_TABS = [
   { key: 'all', label: '全部' },
   { key: 'pending_pay', label: '待付款' },
   { key: 'pending_accept', label: '待接单' },
-  { key: 'accepted', label: '已接单' },
-  { key: 'departed', label: '已出港' },
+  { key: 'departed', label: '待出海' },
   { key: 'completed', label: '已完成' },
-  { key: 'cancelled', label: '已取消' }
+  { key: 'cancelled', label: '已取消' },
+  { key: 'no_show', label: '爽约' }
 ];
 
 var CANCELABLE_STATUSES = ['pending_pay', 'pending_accept', 'accepted'];
@@ -42,19 +43,26 @@ function saveOrders(list) {
 }
 
 function withStatusLabel(order) {
+  var canCancel =
+    order.canCancel != null
+      ? order.canCancel
+      : CANCELABLE_STATUSES.indexOf(order.status) >= 0;
   return Object.assign({}, order, {
-    statusLabel: STATUS_LABEL[order.status] || order.status,
-    canCancel: CANCELABLE_STATUSES.indexOf(order.status) >= 0
+    statusLabel: order.statusLabel || STATUS_LABEL[order.status] || order.status,
+    canCancel: canCancel
   });
 }
 
 function saveBookingContext(ctx) {
   if (!ctx || typeof ctx !== 'object') return;
+  var prev = getBookingContext();
   wx.setStorageSync(CONTEXT_KEY, {
-    date: ctx.date || '',
-    wharf: ctx.wharf || '',
-    people: ctx.people || '',
-    keyword: ctx.keyword || ''
+    date: ctx.date != null ? ctx.date : prev.date || '',
+    wharf: ctx.wharf != null ? ctx.wharf : prev.wharf || '',
+    people: ctx.people != null ? ctx.people : prev.people || '',
+    keyword: ctx.keyword != null ? ctx.keyword : prev.keyword || '',
+    fromIndexReserve:
+      ctx.fromIndexReserve != null ? !!ctx.fromIndexReserve : !!prev.fromIndexReserve
   });
 }
 
@@ -90,7 +98,7 @@ function addBookingOrder(payload) {
 }
 
 function buildLocalOrder(payload) {
-  var status = payload.status || 'pending_accept';
+  var status = payload.status || 'pending_pay';
   return {
     id: genId(),
     orderNo: genId(),
@@ -122,11 +130,95 @@ function createBookingRemote(payload) {
       date: payload.date || '',
       people: Number(payload.people) || 1,
       captainName: payload.captainName || '',
-      status: payload.status || 'pending_accept'
+      status: payload.status || 'pending_pay',
+      bookingType: payload.bookingType || 'shared',
+      sailSlotId: payload.sailSlotId || '',
+      slotTime: payload.slotTime || ''
     })
     .then(function (order) {
+      invalidateSlotCache(payload.boatId, payload.date);
       return withStatusLabel(order);
     });
+}
+
+var _slotCache = {};
+var SLOT_CACHE_TTL = 30000;
+
+function invalidateSlotCache(boatId, date) {
+  if (boatId && date) {
+    delete _slotCache[boatId + ':' + date];
+    return;
+  }
+  _slotCache = {};
+}
+
+function fetchSlotAvailability(boatId, date, options) {
+  options = options || {};
+  var api = require('../config/api');
+  if (!api.USE_API || !boatId || !date) {
+    return Promise.resolve({ slots: [], rulesSummary: null });
+  }
+  var cacheKey = boatId + ':' + date;
+  var now = Date.now();
+  if (!options.force && _slotCache[cacheKey] && now - _slotCache[cacheKey].ts < SLOT_CACHE_TTL) {
+    return Promise.resolve(_slotCache[cacheKey].data);
+  }
+  var request = require('./request');
+  return request
+    .get('/bookings/slots/availability', {
+      boatId: boatId,
+      date: date
+    })
+    .then(function (res) {
+      _slotCache[cacheKey] = { data: res, ts: Date.now() };
+      return res;
+    });
+}
+
+var _bookingRulesCache = null;
+var _bookingRulesInflight = null;
+
+function fetchBookingRules() {
+  var api = require('../config/api');
+  if (!api.USE_API) {
+    return Promise.resolve(null);
+  }
+  if (_bookingRulesCache) {
+    return Promise.resolve(_bookingRulesCache);
+  }
+  if (_bookingRulesInflight) {
+    return _bookingRulesInflight;
+  }
+  var request = require('./request');
+  _bookingRulesInflight = request.get('/bookings/rules').then(function (res) {
+    _bookingRulesCache = res;
+    _bookingRulesInflight = null;
+    return res;
+  }).catch(function (err) {
+    _bookingRulesInflight = null;
+    throw err;
+  });
+  return _bookingRulesInflight;
+}
+
+function fetchBookingDetail(orderId) {
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.reject({ message: '请先登录' });
+  }
+  var request = require('./request');
+  return request.get('/bookings/' + orderId).then(withStatusLabel);
+}
+
+function fetchCancelPreview(orderId) {
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.reject({ message: '请先登录' });
+  }
+  var request = require('./request');
+  return request.get('/bookings/' + orderId + '/cancel-preview');
 }
 
 function fetchOrders(tabKey, options) {
@@ -197,7 +289,7 @@ function syncLocalOrdersToServer() {
       date: item.date,
       people: item.people,
       captainName: item.captainName,
-      status: item.status || 'pending_accept'
+      status: item.status || 'pending_pay'
     };
   });
 
@@ -248,6 +340,11 @@ function setPendingIndexReserve(boatId) {
   }
 }
 
+function clearReservePending() {
+  setPendingIndexReserve(null);
+  setPendingBookAfterVerify(false);
+}
+
 function consumePendingIndexReserve() {
   try {
     var v = wx.getStorageSync(PENDING_INDEX_RESERVE_KEY);
@@ -261,12 +358,18 @@ function consumePendingIndexReserve() {
   }
 }
 
-function cancelOrder(orderId) {
+function cancelOrder(orderId, options) {
+  options = options || {};
   var api = require('../config/api');
   var token = wx.getStorageSync('token');
   if (api.USE_API && token) {
     var request = require('./request');
-    return request.patch('/bookings/' + orderId + '/cancel').then(withStatusLabel);
+    return request
+      .patch('/bookings/' + orderId + '/cancel', {
+        reason: options.reason || '',
+        cancelType: options.cancelType || 'user'
+      })
+      .then(withStatusLabel);
   }
 
   var list = getOrders();
@@ -285,16 +388,106 @@ function cancelOrder(orderId) {
   return Promise.resolve(withStatusLabel(list[idx]));
 }
 
-function goOrdersAfterSuccess() {
+function payOrder(orderId) {
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.reject({ message: '请先登录' });
+  }
+  if (!orderId) {
+    return Promise.reject({ message: '订单不存在' });
+  }
+  var request = require('./request');
+  return request.patch('/bookings/' + orderId + '/pay').then(withStatusLabel);
+}
+
+function showPaymentDevModal(orderId, options) {
+  options = options || {};
+  if (!orderId) {
+    wx.showToast({ title: '订单信息缺失', icon: 'none' });
+    return;
+  }
+  wx.showModal({
+    title: '确认付款',
+    content:
+      '应付金额将提交至系统。开发环境为模拟付款，正式上线后将接入微信支付。付款后船长方可接单。',
+    confirmText: '确认付款',
+    cancelText: '取消',
+    success: function (res) {
+      if (!res.confirm) return;
+      wx.showLoading({ title: '支付中' });
+      payOrder(orderId)
+        .then(function (order) {
+          wx.hideLoading();
+          wx.showToast({ title: '付款成功', icon: 'success' });
+          if (typeof options.onSuccess === 'function') {
+            options.onSuccess(order);
+          }
+        })
+        .catch(function (err) {
+          wx.hideLoading();
+          wx.showToast({
+            title: (err && err.message) || '付款失败',
+            icon: 'none'
+          });
+        });
+    }
+  });
+}
+
+function promptAfterPaySuccess() {
+  var pageHome = require('./pageHome');
+  pageHome.promptReturnHome({
+    title: '付款成功',
+    content: '船长确认接单后您将收到消息通知。可返回首页继续浏览。',
+    confirmText: '查看订单',
+    cancelText: '返回首页'
+  });
+}
+
+function goOrdersAfterSuccess(orderId) {
+  var pageHome = require('./pageHome');
+  try {
+    require('./pageRefresh').resetRefresh('booking-orders');
+  } catch (e) {}
+
+  function openSuccessModal() {
+    try {
+      wx.hideLoading();
+      wx.hideToast();
+    } catch (e) {}
+    wx.showModal({
+      title: '预约提交成功',
+      content: '请尽快完成付款，付款后船长将确认接单。您可在订单列表中点击「去付款」。',
+      confirmText: '查看订单',
+      cancelText: '返回首页',
+      success: function (res) {
+        if (!res.confirm) {
+          pageHome.goHome();
+          return;
+        }
+        var url =
+          '/packageOrder/pages/booking-orders/booking-orders?refresh=1&tab=pending_pay';
+        try {
+          wx.hideLoading();
+          wx.hideToast();
+        } catch (e) {}
+        wx.navigateTo({
+          url: url,
+          fail: function () {
+            wx.redirectTo({ url: url });
+          }
+        });
+      }
+    });
+  }
+
   wx.showToast({
     title: '预约成功',
     icon: 'success',
-    duration: 1500,
-    mask: true
+    duration: 1200,
+    complete: openSuccessModal
   });
-  setTimeout(function () {
-    wx.navigateTo({ url: '/packageOrder/pages/booking-orders/booking-orders' });
-  }, 1500);
 }
 
 module.exports = {
@@ -316,7 +509,15 @@ module.exports = {
   consumePendingBookAfterVerify: consumePendingBookAfterVerify,
   setPendingIndexReserve: setPendingIndexReserve,
   consumePendingIndexReserve: consumePendingIndexReserve,
+  clearReservePending: clearReservePending,
   withStatusLabel: withStatusLabel,
   cancelOrder: cancelOrder,
+  fetchSlotAvailability: fetchSlotAvailability,
+  fetchBookingRules: fetchBookingRules,
+  fetchBookingDetail: fetchBookingDetail,
+  fetchCancelPreview: fetchCancelPreview,
+  payOrder: payOrder,
+  showPaymentDevModal: showPaymentDevModal,
+  promptAfterPaySuccess: promptAfterPaySuccess,
   CANCELABLE_STATUSES: CANCELABLE_STATUSES
 };

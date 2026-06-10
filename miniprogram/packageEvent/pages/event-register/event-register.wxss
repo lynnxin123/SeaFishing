@@ -33,6 +33,30 @@
   font-size: 26rpx;
 }
 
+.register-auth {
+  padding: 16rpx 24rpx 48rpx;
+}
+
+.register-auth__hint {
+  display: block;
+  margin: 32rpx 8rpx 24rpx;
+  text-align: center;
+  color: #536d8b;
+  font-size: 28rpx;
+}
+
+.register-auth__btn {
+  margin: 0 24rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  border-radius: 44rpx;
+  background: #0b4f8c;
+  color: #ffffff;
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
 .register-head {
   margin: 16rpx 24rpx 0;
   padding: 28rpx;

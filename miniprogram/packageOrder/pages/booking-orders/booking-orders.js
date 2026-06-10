@@ -1,5 +1,6 @@
 var bookingOrders = require('../../../utils/bookingOrders');
 var pageRefresh = require('../../../utils/pageRefresh');
+var pageHome = require('../../../utils/pageHome');
 
 Page({
   data: {
@@ -15,6 +16,19 @@ Page({
     pageSize: 20
   },
 
+  onLoad(options) {
+    this._forceRefresh = !!(options && options.refresh === '1');
+    if (options && options.tab) {
+      var tabIndex = this.data.tabs.findIndex(function (item) {
+        return item.key === options.tab;
+      });
+      if (tabIndex >= 0) {
+        this._preserveTab = true;
+        this.setData({ activeTab: tabIndex });
+      }
+    }
+  },
+
   onShow() {
     const auth = require('../../../utils/auth');
     if (!auth.isLoggedIn()) {
@@ -22,10 +36,20 @@ Page({
       wx.showToast({ title: '请先登录查看订单', icon: 'none' });
       return;
     }
-    if (!pageRefresh.shouldRefresh('booking-orders', 30000)) {
+    var force = this._forceRefresh;
+    if (force) {
+      this._forceRefresh = false;
+      pageRefresh.resetRefresh('booking-orders');
+      if (!this._preserveTab && this.data.activeTab !== 0) {
+        this.setData({ activeTab: 0, orders: [], hasMore: false, page: 1 });
+      }
+      this._preserveTab = false;
+      this.loadOrders(true);
       return;
     }
-    this.loadOrders(true);
+    if (!this.data.orders.length || pageRefresh.shouldRefresh('booking-orders', 30000)) {
+      this.loadOrders(true);
+    }
   },
 
   loadOrders(reset) {
@@ -92,22 +116,9 @@ Page({
   onDetailTap(e) {
     var index = Number(e.currentTarget.dataset.index);
     var order = this.data.orders[index];
-    if (!order) return;
-    var lines = [
-      '订单号：' + (order.orderNo || order.id),
-      '船舶：' + (order.shipName || ''),
-      '出行日期：' + (order.date || '待定'),
-      '码头：' + (order.wharf || order.departWharf || '待定'),
-      '人数：' + (order.people || '') + '人',
-      '船长：' + (order.captainName || '待定'),
-      '状态：' + (order.statusLabel || ''),
-      order.price ? '费用：¥' + order.price : ''
-    ].filter(Boolean);
-    wx.showModal({
-      title: '订单详情',
-      content: lines.join('\n'),
-      showCancel: false,
-      confirmText: '知道了'
+    if (!order || !order.id) return;
+    wx.navigateTo({
+      url: '/packageOrder/pages/booking-detail/booking-detail?id=' + order.id
     });
   },
 
@@ -115,39 +126,82 @@ Page({
     var id = e.currentTarget.dataset.id;
     if (!id) return;
     var self = this;
-    wx.showModal({
-      title: '取消预约',
-      content: '确定要取消该预约订单吗？',
-      confirmText: '确认取消',
-      cancelText: '再想想',
-      success: function (res) {
-        if (!res.confirm) return;
-        wx.showLoading({ title: '处理中' });
-        bookingOrders
-          .cancelOrder(id)
-          .then(function () {
-            wx.hideLoading();
-            wx.showToast({ title: '已取消', icon: 'success' });
-            pageRefresh.resetRefresh('booking-orders');
-            self.loadOrders(true);
-          })
-          .catch(function (err) {
-            wx.hideLoading();
-            wx.showToast({
-              title: (err && err.message) || '取消失败',
-              icon: 'none'
+    bookingOrders.fetchCancelPreview(id).then(function (preview) {
+      if (!preview) return;
+      var content = preview.canCancel
+        ? '取消后预计退款 ¥' +
+          preview.refundAmount +
+          '（' +
+          preview.refundPercent +
+          '%）\n' +
+          (preview.tierLabel || '')
+        : preview.reason || '当前不可取消';
+
+      if (!preview.canCancel) {
+        wx.showModal({ title: '无法取消', content: content, showCancel: false });
+        return;
+      }
+
+      wx.showModal({
+        title: '确认取消预约',
+        content: content,
+        confirmText: '确认取消',
+        cancelText: '再想想',
+        success: function (res) {
+          if (!res.confirm) return;
+          wx.showLoading({ title: '处理中' });
+          bookingOrders
+            .cancelOrder(id, { reason: '用户主动取消' })
+            .then(function () {
+              wx.hideLoading();
+              wx.showToast({ title: '已取消', icon: 'success' });
+              pageRefresh.resetRefresh('booking-orders');
+              self.loadOrders(true);
+            })
+            .catch(function (err) {
+              wx.hideLoading();
+              wx.showToast({
+                title: (err && err.message) || '取消失败',
+                icon: 'none'
+              });
             });
-          });
+        }
+      });
+    }).catch(function (err) {
+      wx.showToast({
+        title: (err && err.message) || '获取取消信息失败',
+        icon: 'none'
+      });
+    });
+  },
+
+  onRetryLoad() {
+    this.loadOrders(true);
+  },
+
+  onPayTap(e) {
+    var id = e.currentTarget.dataset.id;
+    if (!id) return;
+    var self = this;
+    bookingOrders.showPaymentDevModal(id, {
+      onSuccess: function () {
+        pageRefresh.resetRefresh('booking-orders');
+        self.loadOrders(true);
+        bookingOrders.promptAfterPaySuccess();
       }
     });
   },
 
-  onPayTap() {
-    wx.showModal({
-      title: '待付款',
-      content: '在线支付将在正式上线时开放，目前请联系客服完成确认。',
-      showCancel: false,
-      confirmText: '知道了'
+  onGoHome() {
+    pageHome.goHome();
+  },
+
+  onGoMy() {
+    wx.switchTab({
+      url: '/pages/my/my',
+      fail: function () {
+        wx.reLaunch({ url: '/pages/my/my' });
+      }
     });
   }
 });

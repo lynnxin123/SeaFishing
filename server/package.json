@@ -10,7 +10,15 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "db:seed": "node prisma/seed.js"
+    "db:seed": "node prisma/seed.js",
+    "test:e2e": "node scripts/e2e-five-users.js",
+    "test:booking": "node scripts/e2e-booking-cancel-full.js",
+    "test:full": "node scripts/e2e-full-suite.js",
+    "test:all": "node scripts/e2e-full-suite.js && node scripts/e2e-booking-cancel-full.js && node scripts/e2e-five-users.js",
+    "test:deep": "node scripts/e2e-deep-full-run.js",
+    "reset:booking": "node scripts/reset-booking-test-data.js",
+    "reset:competition": "node scripts/reset-competition-test-data.js",
+    "reset:test-users": "node scripts/reset-test-users-data.js"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.15",

@@ -108,13 +108,39 @@
 }
 
 .feature-input {
+  display: block;
   width: 100%;
   box-sizing: border-box;
   margin-top: 16rpx;
-  padding: 20rpx;
+  height: 80rpx;
+  line-height: 80rpx;
+  padding: 0 20rpx;
   background: #f7fafc;
   border-radius: 16rpx;
   font-size: 26rpx;
+  color: #141d3a;
+}
+
+.feature-picker {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.feature-picker__text {
+  flex: 1;
+  color: #141d3a;
+}
+
+.feature-picker__placeholder {
+  flex: 1;
+  color: #98a4b8;
+}
+
+.feature-picker__arrow {
+  font-size: 20rpx;
+  color: #98a4b8;
+  margin-left: 12rpx;
 }
 
 .feature-tip {

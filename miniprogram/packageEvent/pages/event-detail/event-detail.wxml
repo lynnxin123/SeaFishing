@@ -11,7 +11,7 @@
 
   <block wx:elif="{{pageState === 'ready'}}">
   <view class="detail-hero-wrap" bindtap="onPreviewImage">
-    <image class="detail-hero" src="{{competition.cover}}" mode="aspectFill" />
+    <image lazy-load class="detail-hero" src="{{competition.cover}}" mode="aspectFill" />
     <view class="detail-hero__mask"></view>
     <view class="detail-hero__tip">点击查看大图</view>
   </view>
@@ -73,7 +73,10 @@
   </view>
 
   <view class="detail-foot">
-    <view class="detail-foot__btn" bindtap="onGoRegister">赛事报名</view>
+    <view
+      class="detail-foot__btn {{registerDisabled ? 'detail-foot__btn--disabled' : ''}}"
+      bindtap="onGoRegister"
+    >{{registerBtnText}}</view>
   </view>
   </block>
 </view>

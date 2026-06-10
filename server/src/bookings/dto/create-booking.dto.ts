@@ -1,14 +1,22 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class CreateBookingDto {
   @IsOptional()
   @IsString()
   boatId?: string;
 
+  @IsOptional()
   @IsString()
   @MinLength(1)
-  shipName!: string;
+  shipName?: string;
 
   @IsOptional()
   @IsString()
@@ -41,4 +49,18 @@ export class CreateBookingDto {
   @IsOptional()
   @IsString()
   status?: 'pending_pay' | 'pending_accept';
+
+  /** 散拼 shared / 包船 charter */
+  @IsOptional()
+  @IsEnum(['shared', 'charter'])
+  bookingType?: 'shared' | 'charter';
+
+  /** 出航时段 id 或 slotKey */
+  @IsOptional()
+  @IsString()
+  sailSlotId?: string;
+
+  @IsOptional()
+  @IsString()
+  slotTime?: string;
 }

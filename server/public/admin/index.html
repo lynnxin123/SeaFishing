@@ -13,6 +13,84 @@
     .header { background: #0b4f8c; color: #fff; padding: 0 20px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
     .main { padding: 20px; }
     .toolbar { margin-bottom: 16px; display: flex; gap: 12px; align-items: center; }
+    .booking-table .order-no { font-family: Consolas, monospace; font-size: 12px; color: #606266; }
+    .booking-table .user-name { font-weight: 600; color: #303133; }
+    .booking-table .user-sub { font-size: 12px; color: #909399; margin-top: 2px; }
+    .booking-table .phone-empty { color: #c0c4cc; }
+    .status-tag { border: none; font-weight: 600; }
+    .booking-footer {
+      margin-top: 16px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    .booking-summary {
+      margin-bottom: 12px;
+      padding: 10px 14px;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #ebeef5;
+      font-size: 14px;
+      color: #606266;
+    }
+    .booking-summary strong {
+      color: #303133;
+      font-weight: 600;
+    }
+    .booking-summary .amount {
+      color: #e6a23c;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .booking-summary .paid-amount {
+      color: #67c23a;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .booking-table .price-cell {
+      color: #e6a23c;
+      font-weight: 600;
+    }
+    .competition-info {
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #ebeef5;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 24px;
+      font-size: 14px;
+      color: #606266;
+    }
+    .competition-info strong {
+      color: #303133;
+      font-weight: 600;
+    }
+    .competition-info .fee {
+      color: #e6a23c;
+      font-weight: 600;
+    }
+    .boat-schedule-summary {
+      font-size: 12px;
+      color: #606266;
+      line-height: 1.5;
+      max-width: 320px;
+    }
+    .boat-schedule-link {
+      font-size: 12px;
+      color: #409eff;
+      cursor: pointer;
+      margin-top: 4px;
+      display: inline-block;
+    }
+    .boat-today-trip {
+      font-size: 12px;
+      color: #909399;
+      margin-top: 4px;
+    }
   </style>
 </head>
 <body>
@@ -94,25 +172,45 @@
         const selectedLegacyId = ref('');
         const bookingPage = ref(1);
         const bookingTotal = ref(0);
+        const bookingAmountSum = ref(0);
+        const bookingPaidAmountSum = ref(0);
+        const bookingPeopleSum = ref(0);
         const boatPage = ref(1);
         const boatTotal = ref(0);
+        const boatScheduleRange = ref({ from: '', to: '' });
+        const boatScheduleDialog = ref(false);
+        const boatScheduleTitle = ref('');
+        const boatScheduleRows = ref([]);
         const regPage = ref(1);
         const regTotal = ref(0);
+        const bookingPageSize = 10;
         const pageSize = 50;
 
-        function pageQuery(page) {
-          return '?page=' + page + '&pageSize=' + pageSize;
+        function pageQuery(page, size) {
+          return '?page=' + page + '&pageSize=' + (size || pageSize);
+        }
+
+        function formatMoney(n) {
+          var v = Number(n) || 0;
+          return v.toFixed(2);
+        }
+
+        function orderAmount(row) {
+          return Number(row.totalAmount != null ? row.totalAmount : row.price) || 0;
         }
 
         async function loadBookings() {
           try {
-            var q = pageQuery(bookingPage.value);
+            var q = pageQuery(bookingPage.value, bookingPageSize);
             if (bookingStatus.value !== 'all') {
               q += '&status=' + bookingStatus.value;
             }
             const data = await api('/admin/bookings' + q);
             bookings.value = data.items || [];
             bookingTotal.value = data.total || 0;
+            bookingAmountSum.value = data.amountSum || 0;
+            bookingPaidAmountSum.value = data.paidAmountSum || 0;
+            bookingPeopleSum.value = data.peopleSum || 0;
           } catch (e) {
             ElementPlus.ElMessage.error(e.message || '加载订单失败');
             bookings.value = [];
@@ -121,9 +219,46 @@
         }
 
         async function loadBoats() {
-          const data = await api('/admin/boats' + pageQuery(boatPage.value));
-          boats.value = data.items || [];
-          boatTotal.value = data.total || 0;
+          try {
+            const data = await api('/admin/boats' + pageQuery(boatPage.value));
+            boats.value = data.items || [];
+            boatTotal.value = data.total || 0;
+            if (data.scheduleRange) {
+              boatScheduleRange.value = data.scheduleRange;
+            }
+          } catch (e) {
+            ElementPlus.ElMessage.error(e.message || '加载船只失败');
+            boats.value = [];
+            boatTotal.value = 0;
+          }
+        }
+
+        var BOAT_OPERATIONAL_STATUS = {
+          at_sea: { label: '出港中', color: '#e6a23c' },
+          awaiting_departure: { label: '今日待出港', color: '#409eff' },
+          at_port: { label: '在港', color: '#67c23a' },
+          inactive: { label: '已下架', color: '#909399' }
+        };
+
+        function boatStatusTagStyle(status) {
+          var color = (BOAT_OPERATIONAL_STATUS[status] || { color: '#909399' }).color;
+          return { backgroundColor: color, borderColor: color, color: '#fff' };
+        }
+
+        function boatStatusLabel(row) {
+          return row.operationalStatusLabel || (BOAT_OPERATIONAL_STATUS[row.operationalStatus] || {}).label || '—';
+        }
+
+        function boatTodayTripText(row) {
+          if (!row.todayTrip) return '';
+          var t = row.todayTrip;
+          return t.date + ' ' + (t.slotTime || '—') + ' · ' + t.people + '人 · ' + (t.statusLabel || '');
+        }
+
+        function openBoatSchedule(row) {
+          boatScheduleTitle.value = (row.shipName || row.boatId) + ' · 未来30天排期';
+          boatScheduleRows.value = row.monthSchedule || [];
+          boatScheduleDialog.value = true;
         }
 
         async function loadCompetitions() {
@@ -195,6 +330,64 @@
           return item.name + '（' + count + '人）';
         }
 
+        function selectedCompetition() {
+          if (!selectedLegacyId.value) return null;
+          var id = String(selectedLegacyId.value);
+          for (var i = 0; i < competitions.value.length; i++) {
+            if (String(competitions.value[i].legacyId) === id) {
+              return competitions.value[i];
+            }
+          }
+          return null;
+        }
+
+        var BOOKING_STATUS = {
+          pending_pay: { label: '待付款', color: '#e6a23c' },
+          pending_accept: { label: '待接单', color: '#409eff' },
+          accepted: { label: '已接单', color: '#00acc1' },
+          departed: { label: '已出港', color: '#7e57c2' },
+          completed: { label: '已完成', color: '#67c23a' },
+          cancelled: { label: '已取消', color: '#909399' },
+          no_show: { label: '爽约', color: '#f56c6c' }
+        };
+
+        function statusLabel(status) {
+          return (BOOKING_STATUS[status] || { label: status || '未知' }).label;
+        }
+
+        function statusTagStyle(status) {
+          var color = (BOOKING_STATUS[status] || { color: '#909399' }).color;
+          return { backgroundColor: color, borderColor: color, color: '#fff' };
+        }
+
+        function userDisplay(row) {
+          if (!row.user) return '—';
+          // 预约账号以登录昵称为准，避免实名与昵称上下两行显得重复
+          return row.user.nickName || row.user.realName || '微信用户';
+        }
+
+        function userVerified(row) {
+          return !!(row.user && row.user.verified && row.user.realName);
+        }
+
+        function userRealName(row) {
+          return (row.user && row.user.realName) || '';
+        }
+
+        function userContact(row) {
+          if (!row.user) return '—';
+          if (row.user.phone) return row.user.phone;
+          if (row.user.wechatId) return '微信 ' + row.user.wechatId;
+          return '—';
+        }
+
+        function userContactType(row) {
+          if (!row.user) return '';
+          if (row.user.phone) return '手机';
+          if (row.user.wechatId) return '微信';
+          return '';
+        }
+
         async function updateBookingStatus(row, status) {
           await api('/admin/bookings/' + row.id + '/status', {
             method: 'PATCH',
@@ -225,8 +418,22 @@
           selectedLegacyId,
           bookingPage,
           bookingTotal,
+          bookingAmountSum,
+          bookingPaidAmountSum,
+          bookingPeopleSum,
+          bookingPageSize,
+          formatMoney,
+          orderAmount,
           boatPage,
           boatTotal,
+          boatScheduleRange,
+          boatScheduleDialog,
+          boatScheduleTitle,
+          boatScheduleRows,
+          boatStatusTagStyle,
+          boatStatusLabel,
+          boatTodayTripText,
+          openBoatSchedule,
           regPage,
           regTotal,
           pageSize,
@@ -242,6 +449,14 @@
           onBookingStatusChange,
           onCompetitionChange,
           competitionLabel,
+          selectedCompetition,
+          statusLabel,
+          statusTagStyle,
+          userDisplay,
+          userVerified,
+          userRealName,
+          userContact,
+          userContactType,
           logout
         };
       },
@@ -255,53 +470,158 @@
             <el-tabs v-model="activeTab" @tab-change="onTabChange">
               <el-tab-pane label="预约订单" name="bookings">
                 <div class="toolbar">
-                  <el-select v-model="bookingStatus" style="width:160px" @change="onBookingStatusChange">
+                  <el-select v-model="bookingStatus" style="width:140px" @change="onBookingStatusChange">
                     <el-option label="全部" value="all" />
+                    <el-option label="待付款" value="pending_pay" />
                     <el-option label="待接单" value="pending_accept" />
                     <el-option label="已接单" value="accepted" />
                     <el-option label="已出港" value="departed" />
                     <el-option label="已完成" value="completed" />
+                    <el-option label="已取消" value="cancelled" />
+                    <el-option label="爽约" value="no_show" />
                   </el-select>
                   <el-button @click="loadBookings">刷新</el-button>
                 </div>
-                <el-table :data="bookings" stripe>
-                  <el-table-column prop="orderNo" label="订单号" width="180" />
-                  <el-table-column prop="shipName" label="船舶" />
-                  <el-table-column prop="date" label="日期" width="120" />
-                  <el-table-column prop="people" label="人数" width="70" />
-                  <el-table-column prop="status" label="状态" width="120" />
-                  <el-table-column label="操作" width="260">
+                <div class="booking-summary" v-if="bookingTotal > 0">
+                  共 <strong>{{ bookingTotal }}</strong> 笔订单，
+                  合计 <strong>{{ bookingPeopleSum }}</strong> 人，
+                  订单总额 <span class="amount">¥{{ formatMoney(bookingAmountSum) }}</span>，
+                  实付金额 <span class="paid-amount">¥{{ formatMoney(bookingPaidAmountSum) }}</span>
+                  <span v-if="bookings.length < bookingTotal" style="color:#909399;margin-left:8px">
+                    （当前第 {{ bookingPage }} 页，本页 {{ bookings.length }} 笔）
+                  </span>
+                </div>
+                <div v-else class="booking-summary" style="color:#909399">暂无订单</div>
+                <el-table :data="bookings" stripe class="booking-table" style="width:100%">
+                  <el-table-column label="订单号" min-width="150" show-overflow-tooltip>
                     <template #default="{ row }">
-                      <el-button size="small" @click="updateBookingStatus(row, 'accepted')">接单</el-button>
-                      <el-button size="small" @click="updateBookingStatus(row, 'departed')">出港</el-button>
-                      <el-button size="small" @click="updateBookingStatus(row, 'completed')">完成</el-button>
+                      <span class="order-no">{{ row.orderNo }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="预约账号" min-width="120">
+                    <template #default="{ row }">
+                      <div class="user-name">{{ userDisplay(row) }}</div>
+                      <div v-if="userVerified(row)" class="user-sub">实名 {{ userRealName(row) }}</div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="联系方式" min-width="130">
+                    <template #default="{ row }">
+                      <div>{{ userContact(row) }}</div>
+                      <div v-if="userContactType(row)" class="user-sub">{{ userContactType(row) }}</div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="shipName" label="船舶" min-width="110" show-overflow-tooltip />
+                  <el-table-column label="出行" width="130">
+                    <template #default="{ row }">
+                      <div>{{ row.date }}</div>
+                      <div class="user-sub">{{ row.slotTime || '—' }}</div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="people" label="人数" width="60" align="center" />
+                  <el-table-column label="金额" width="88" align="right">
+                    <template #default="{ row }">
+                      <span class="price-cell">¥{{ formatMoney(orderAmount(row)) }}</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="状态" width="92" align="center">
+                    <template #default="{ row }">
+                      <el-tag
+                        class="status-tag"
+                        size="small"
+                        :style="statusTagStyle(row.status)"
+                      >{{ statusLabel(row.status) }}</el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="220" fixed="right">
+                    <template #default="{ row }">
+                      <el-button
+                        size="small"
+                        type="primary"
+                        plain
+                        :disabled="row.status !== 'pending_accept'"
+                        @click="updateBookingStatus(row, 'accepted')"
+                      >接单</el-button>
+                      <el-button
+                        size="small"
+                        type="warning"
+                        plain
+                        :disabled="row.status !== 'accepted'"
+                        @click="updateBookingStatus(row, 'departed')"
+                      >出港</el-button>
+                      <el-button
+                        size="small"
+                        type="success"
+                        plain
+                        :disabled="row.status !== 'departed'"
+                        @click="updateBookingStatus(row, 'completed')"
+                      >完成</el-button>
                     </template>
                   </el-table-column>
                 </el-table>
-                <el-pagination
-                  v-if="bookingTotal > pageSize"
-                  style="margin-top:16px"
-                  background
-                  layout="prev, pager, next, total"
-                  :total="bookingTotal"
-                  :page-size="pageSize"
-                  :current-page="bookingPage"
-                  @current-change="onBookingPageChange"
-                />
+                <div class="booking-footer" v-if="bookingTotal > 0">
+                  <el-pagination
+                    background
+                    layout="total, prev, pager, next, jumper"
+                    :total="bookingTotal"
+                    :page-size="bookingPageSize"
+                    :current-page="bookingPage"
+                    @current-change="onBookingPageChange"
+                  />
+                </div>
               </el-tab-pane>
 
               <el-tab-pane label="船只管理" name="boats">
-                <div class="toolbar"><el-button @click="loadBoats">刷新</el-button></div>
+                <div class="toolbar">
+                  <el-button @click="loadBoats">刷新</el-button>
+                  <span v-if="boatScheduleRange.from" style="color:#888;font-size:13px">
+                    排期统计范围：{{ boatScheduleRange.from }} 至 {{ boatScheduleRange.to }}（已付款有效订单）
+                  </span>
+                </div>
                 <el-table :data="boats" stripe>
-                  <el-table-column prop="boatId" label="编号" width="120" />
-                  <el-table-column prop="shipName" label="船名" />
-                  <el-table-column prop="captain" label="船长" width="100" />
-                  <el-table-column prop="wharf" label="码头" width="120" />
-                  <el-table-column prop="price" label="价格" width="90" />
-                  <el-table-column prop="active" label="上架" width="80">
+                  <el-table-column prop="boatId" label="编号" width="110" />
+                  <el-table-column prop="shipName" label="船名" width="130" />
+                  <el-table-column label="当前状态" width="120">
+                    <template #default="{ row }">
+                      <el-tag class="status-tag" :style="boatStatusTagStyle(row.operationalStatus)">
+                        {{ boatStatusLabel(row) }}
+                      </el-tag>
+                      <div v-if="row.todayTrip" class="boat-today-trip">{{ boatTodayTripText(row) }}</div>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="未来30天排期" min-width="280">
+                    <template #default="{ row }">
+                      <div class="boat-schedule-summary">{{ row.monthScheduleSummary || '暂无排期' }}</div>
+                      <span
+                        v-if="row.monthTripCount > 0"
+                        class="boat-schedule-link"
+                        @click="openBoatSchedule(row)"
+                      >查看全部 {{ row.monthTripCount }} 次</span>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="captain" label="船长" width="90" />
+                  <el-table-column prop="wharf" label="码头" width="110" />
+                  <el-table-column prop="price" label="价格" width="80" />
+                  <el-table-column prop="active" label="上架" width="70">
                     <template #default="{ row }">{{ row.active ? '是' : '否' }}</template>
                   </el-table-column>
                 </el-table>
+                <el-dialog v-model="boatScheduleDialog" :title="boatScheduleTitle" width="640px">
+                  <el-table :data="boatScheduleRows" stripe max-height="400" empty-text="暂无排期">
+                    <el-table-column prop="date" label="出航日期" width="120" />
+                    <el-table-column prop="slotTime" label="时段" width="100" />
+                    <el-table-column prop="people" label="人数" width="70" />
+                    <el-table-column label="订单状态" width="100">
+                      <template #default="{ row }">
+                        <el-tag class="status-tag" :style="statusTagStyle(row.status)">{{ row.statusLabel }}</el-tag>
+                      </template>
+                    </el-table-column>
+                    <el-table-column prop="orderNo" label="订单号" min-width="160">
+                      <template #default="{ row }">
+                        <span class="order-no">{{ row.orderNo }}</span>
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </el-dialog>
                 <el-pagination
                   v-if="boatTotal > pageSize"
                   style="margin-top:16px"
@@ -327,6 +647,11 @@
                   <el-button @click="loadCompetitions">刷新</el-button>
                 </div>
                 <p v-if="!selectedLegacyId" style="color:#888;margin-bottom:12px;">请先在上方选择赛事，报名名单会显示在下方</p>
+                <div class="competition-info" v-if="selectedCompetition()">
+                  <span><strong>比赛时间：</strong>{{ selectedCompetition().time || '—' }}</span>
+                  <span><strong>比赛地点：</strong>{{ selectedCompetition().location || '—' }}</span>
+                  <span><strong>报名费用：</strong><span class="fee">{{ selectedCompetition().fee || '待定' }}</span></span>
+                </div>
                 <el-table :data="registrations" stripe>
                   <el-table-column prop="realName" label="姓名" width="100" />
                   <el-table-column prop="phone" label="手机" width="130" />

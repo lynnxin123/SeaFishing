@@ -68,8 +68,10 @@ function fetchMyFavorites() {
       if (Array.isArray(res)) return res;
       return (res && res.items) || [];
     })
-    .catch(function () {
-      return [];
+    .catch(function (err) {
+      return Promise.reject(
+        err && err.message ? err : { message: '加载收藏船只失败，请重试' }
+      );
     });
 }
 

@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BookingsModule } from '../bookings/bookings.module';
 import { BoatsModule } from '../boats/boats.module';
+import { MessagesModule } from '../messages/messages.module';
 import { SpotsModule } from '../spots/spots.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
@@ -9,7 +11,9 @@ import { AdminAuthGuard } from './admin-auth.guard';
 
 @Module({
   imports: [
+    BookingsModule,
     BoatsModule,
+    MessagesModule,
     SpotsModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

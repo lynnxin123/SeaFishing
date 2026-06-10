@@ -14,6 +14,8 @@ Page({
     formRemark: '',
     inputValue: '',
     inputSpecies: '',
+    speciesOptions: [],
+    speciesIndex: 0,
     loading: false,
     loadError: '',
     skeletonVariant: 'rank'
@@ -28,9 +30,28 @@ Page({
     this.setData({
       pageTitle: title,
       pageDesc: desc,
-      showForm: showForm
+      showForm: showForm,
+      speciesOptions: competitionTools.FISH_SPECIES_OPTIONS || [],
+      speciesIndex: 0,
+      inputSpecies: ''
     });
     this.loadFeatureData();
+  },
+
+  featureRedirectUrl() {
+    return (
+      '/packageEvent/pages/event-feature/event-feature?type=' +
+      encodeURIComponent(this._featureType || '') +
+      '&competitionId=' +
+      encodeURIComponent(this._legacyId || '1')
+    );
+  },
+
+  goLoginForFeature() {
+    auth.goLogin({
+      from: 'event-feature',
+      redirect: this.featureRedirectUrl()
+    });
   },
 
   loadFeatureData() {
@@ -83,8 +104,15 @@ Page({
     this._inputValueDraft = e.detail.value;
   },
 
-  onInputSpecies(e) {
-    this._inputSpeciesDraft = e.detail.value;
+  onSpeciesChange(e) {
+    var idx = Number(e.detail.value);
+    var options = this.data.speciesOptions || [];
+    var species = options[idx] || '';
+    if (species === '不指定') {
+      species = '';
+    }
+    this._inputSpeciesDraft = species;
+    this.setData({ speciesIndex: idx, inputSpecies: species });
   },
 
   onRemarkInput(e) {
@@ -117,13 +145,14 @@ Page({
       .then(function () {
         wx.hideLoading();
         wx.showToast({ title: '测量已记录', icon: 'success' });
-        self.setData({ inputValue: '', inputSpecies: '' });
+        self.setData({ inputValue: '', inputSpecies: '', speciesIndex: 0 });
+        self._inputSpeciesDraft = '';
         self.loadFeatureData();
       })
       .catch(function (err) {
         wx.hideLoading();
         if (err && err.code === 'NEED_LOGIN') {
-          auth.goLogin({ from: 'event-feature' });
+          self.goLoginForFeature();
           return;
         }
         wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' });
@@ -149,7 +178,7 @@ Page({
       .catch(function (err) {
         wx.hideLoading();
         if (err && err.code === 'NEED_LOGIN') {
-          auth.goLogin({ from: 'event-feature' });
+          self.goLoginForFeature();
           return;
         }
         wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' });
@@ -158,10 +187,13 @@ Page({
 
   onSubmitForm() {
     if (!auth.isLoggedIn()) {
-      auth.goLogin({ from: 'event-feature' });
+      this.goLoginForFeature();
       return;
     }
-    var remark = String(this.data.formRemark || '').trim();
+    this.syncInputDrafts();
+    var remark = String(
+      this._formRemarkDraft != null ? this._formRemarkDraft : this.data.formRemark || ''
+    ).trim();
     if (!remark) {
       wx.showToast({ title: '请填写说明内容', icon: 'none' });
       return;
@@ -185,7 +217,7 @@ Page({
       .catch(function (err) {
         wx.hideLoading();
         if (err && err.code === 'NEED_LOGIN') {
-          auth.goLogin({ from: 'event-feature' });
+          self.goLoginForFeature();
           return;
         }
         wx.showToast({ title: (err && err.message) || '提交失败', icon: 'none' });

@@ -231,3 +231,9 @@
   background: linear-gradient(135deg, #0c6dff, #0b4f8c);
   box-shadow: 0 10rpx 28rpx rgba(12, 109, 255, 0.28);
 }
+
+.detail-foot__btn--disabled {
+  color: #8a9bb0;
+  background: #e8edf3;
+  box-shadow: none;
+}

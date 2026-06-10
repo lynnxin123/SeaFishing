@@ -1,5 +1,5 @@
 <view class="orders-page">
-  <navigation-bar title="赛事报名订单" back="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+  <navigation-bar title="赛事报名订单" back="{{true}}" homeButton="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
 
   <view class="orders-body">
     <view wx:if="{{loading}}" class="skeleton-wrap">
@@ -10,7 +10,7 @@
       <text class="empty-icon" aria-hidden="true">⚠</text>
       <text class="empty-text">{{loadError}}</text>
       <text class="empty-hint">请检查网络后重试</text>
-      <view class="retry-btn" bindtap="loadList">重新加载</view>
+      <view class="retry-btn" bindtap="onRetry">重新加载</view>
     </view>
 
     <view wx:elif="{{isEmpty}}" class="empty-wrap">

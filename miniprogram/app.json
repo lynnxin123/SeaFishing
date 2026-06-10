@@ -1,4 +1,5 @@
 {
+  "lazyCodeLoading": "requiredComponents",
   "pages": [
     "pages/index/index",
     "pages/boat/boat",
@@ -11,6 +12,7 @@
       "root": "packageOrder",
       "pages": [
         "pages/booking-orders/booking-orders",
+        "pages/booking-detail/booking-detail",
         "pages/event-orders/event-orders",
         "pages/map-favorites/map-favorites",
         "pages/boat-favorites/boat-favorites"
@@ -41,6 +43,10 @@
     }
   ],
   "preloadRule": {
+    "pages/index/index": {
+      "network": "wifi",
+      "packages": ["packageBoat"]
+    },
     "pages/boat/boat": {
       "network": "all",
       "packages": ["packageBoat"]

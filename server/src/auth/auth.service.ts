@@ -20,7 +20,8 @@ export class AuthService {
 
   async wxLogin(dto: WxLoginDto) {
     const session = await this.resolveWxSession(dto.code);
-    const user = await this.prisma.user.upsert({
+    const devContact = this.devContactDefaults(session.openid);
+    let user = await this.prisma.user.upsert({
       where: { openid: session.openid },
       update: {
         nickName: dto.nickName || undefined,
@@ -30,8 +31,20 @@ export class AuthService {
         openid: session.openid,
         nickName: dto.nickName || '微信用户',
         avatarUrl: dto.avatarUrl || '',
+        phone: devContact.phone || '',
+        wechatId: devContact.wechatId || '',
       },
     });
+
+    if (devContact.phone && !user.phone && !user.wechatId) {
+      user = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          phone: devContact.phone,
+          wechatId: devContact.wechatId,
+        },
+      });
+    }
 
     const token = await this.jwtService.signAsync({
       sub: user.id,
@@ -40,7 +53,10 @@ export class AuthService {
 
     return {
       token,
-      user: this.toUserProfile(user),
+      user: {
+        ...this.toUserProfile(user),
+        isTestAccount: /^(tester\d+|test0[1-5])$/.test(user.openid),
+      },
     };
   }
 
@@ -80,10 +96,24 @@ export class AuthService {
     return data;
   }
 
+  private devContactDefaults(openid: string) {
+    const tester = /^tester(\d)$/.exec(openid);
+    const test0 = /^test0(\d)$/.exec(openid);
+    const n = tester ? tester[1] : test0 ? test0[1] : '';
+    if (!n) {
+      return { phone: '', wechatId: '' };
+    }
+    return {
+      phone: `1380000000${n}`,
+      wechatId: `haidia_test_${n}`,
+    };
+  }
+
   toUserProfile(user: {
     nickName: string;
     avatarUrl: string;
     phone: string;
+    wechatId?: string;
     verified: boolean;
     realName: string;
     levelName: string;
@@ -95,6 +125,7 @@ export class AuthService {
       nickName: user.nickName,
       avatarUrl: user.avatarUrl,
       phone: user.phone,
+      wechatId: user.wechatId || '',
       verified: user.verified,
       realName: user.realName,
       levelName: user.levelName,

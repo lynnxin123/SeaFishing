@@ -1,4 +1,5 @@
 var auth = require('../../utils/auth');
+var messageService = require('../../utils/messageService');
 var rewardService = require('../../utils/rewardService');
 
 var MENU_LIST = [
@@ -15,7 +16,8 @@ Page({
     userInfo: auth.GUEST_PROFILE,
     menuList: MENU_LIST,
     showRewards: false,
-    rewardLogs: []
+    rewardLogs: [],
+    unreadMessageCount: 0
   },
 
   onLoad() {
@@ -25,12 +27,19 @@ Page({
   onShow() {
     var self = this;
     if (auth.isLoggedIn()) {
-      auth.refreshProfileFromServer({ minIntervalMs: 60000 }).then(function (profile) {
+      Promise.all([
+        auth.refreshProfileFromServer({ minIntervalMs: 60000 }),
+        messageService.fetchUnreadCount()
+      ]).then(function (results) {
+        var profile = results[0];
+        var unread = results[1];
         if (profile) {
           self.applyLoggedState(profile);
         } else {
           self.syncFromStorage();
         }
+        self.setData({ unreadMessageCount: unread || 0 });
+        messageService.syncTabBarBadge(unread || 0);
         if (self.data.showRewards) {
           self.loadRewardLogs();
         }
@@ -38,6 +47,15 @@ Page({
       return;
     }
     this.syncFromStorage();
+    this.setData({ unreadMessageCount: 0 });
+    messageService.syncTabBarBadge(0);
+  },
+
+  loadUnreadMessages() {
+    var self = this;
+    messageService.fetchUnreadCount().then(function (count) {
+      self.setData({ unreadMessageCount: count || 0 });
+    });
   },
 
   syncFromStorage() {
@@ -68,8 +86,10 @@ Page({
       isLoggedIn: false,
       showUnverified: false,
       userInfo: auth.GUEST_PROFILE,
-      menuList: MENU_LIST
+      menuList: MENU_LIST,
+      unreadMessageCount: 0
     });
+    messageService.syncTabBarBadge(0);
     auth.syncLoginState();
   },
 
@@ -115,7 +135,11 @@ Page({
   },
 
   onBellTap() {
-    wx.navigateTo({ url: '/packageUser/pages/messages/messages' });
+    if (!auth.isLoggedIn()) {
+      auth.goLogin({ from: 'my' });
+      return;
+    }
+    wx.navigateTo({ url: '/packageUser/pages/messages/messages?refresh=1' });
   },
 
   onCheckIn() {
@@ -158,19 +182,19 @@ Page({
     }
     var id = e.currentTarget.dataset.id;
     if (id === 'booking') {
-      wx.navigateTo({ url: '/packageOrder/pages/booking-orders/booking-orders' });
+      wx.navigateTo({ url: '/packageOrder/pages/booking-orders/booking-orders?refresh=1' });
       return;
     }
     if (id === 'boat-fav') {
-      wx.navigateTo({ url: '/packageOrder/pages/boat-favorites/boat-favorites' });
+      wx.navigateTo({ url: '/packageOrder/pages/boat-favorites/boat-favorites?refresh=1' });
       return;
     }
     if (id === 'map-fav') {
-      wx.navigateTo({ url: '/packageOrder/pages/map-favorites/map-favorites' });
+      wx.navigateTo({ url: '/packageOrder/pages/map-favorites/map-favorites?refresh=1' });
       return;
     }
     if (id === 'event') {
-      wx.navigateTo({ url: '/packageOrder/pages/event-orders/event-orders' });
+      wx.navigateTo({ url: '/packageOrder/pages/event-orders/event-orders?refresh=1' });
       return;
     }
     wx.showToast({ title: '功能开发中', icon: 'none' });

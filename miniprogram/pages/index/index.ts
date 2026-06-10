@@ -17,21 +17,6 @@ Page({
         url: '/images/banner-1.jpg',
         title: '海发船业',
         subtitle: '深海出航，专业钓鱼服务'
-      },
-      {
-        url: '/images/banner-2.jpg',
-        title: '海发船业',
-        subtitle: '大连海钓首选渔船'
-      },
-      {
-        url: '/images/banner-3.jpg',
-        title: '海发船业',
-        subtitle: '专业船队，安心出海'
-      },
-      {
-        url: '/images/banner-4.jpg',
-        title: '海发船业',
-        subtitle: '丰收渔获，精彩不断'
       }
     ],
     weather: marineConditions.getConditionsForDate(defaultDate).weather,
@@ -47,12 +32,7 @@ Page({
     boatsError: '',
     eventCards: [] as Array<{ id: number; banner: string; title: string; location: string; date: string }>,
     eventsLoading: false,
-    eventsError: '',
-    showReservePopup: false,
-    reserveBoat: {
-      name: '',
-      captain: ''
-    }
+    eventsError: ''
   },
 
   onLoad() {
@@ -61,12 +41,13 @@ Page({
     if (api.USE_API) {
       this.setData({ boatsLoading: true })
     }
-    eventService.fetchBanners().then((banners) => {
+    const bannerPromise = eventService.fetchBanners().then((banners) => {
       if (Array.isArray(banners) && banners.length) {
         this.setData({ bannerImages: banners })
       }
     })
-    this.loadFeaturedBoats()
+    const boatsPromise = this.loadFeaturedBoats()
+    Promise.all([bannerPromise, boatsPromise]).catch(() => {})
     this.refreshMarineConditions(this.data.selectedDate)
   },
 
@@ -91,11 +72,11 @@ Page({
           eventsError: ''
         })
       })
-      .catch(() => {
+      .catch((err: { message?: string }) => {
         this.setData({
-          eventCards: eventService.getIndexEventCards(6),
+          eventCards: [],
           eventsLoading: false,
-          eventsError: ''
+          eventsError: (err && err.message) || '赛事加载失败，请重试'
         })
       })
   },
@@ -104,11 +85,11 @@ Page({
     const api = require('../../config/api')
     if (!api.USE_API) {
       this.setData({ boatsLoading: false, boatsError: '' })
-      return
+      return Promise.resolve()
     }
     this.setData({ boatsLoading: true, boatsError: '' })
     const request = require('../../utils/request')
-    request
+    return request
       .get('/boats', { boatIds: featuredBoats.FEATURED_BOAT_IDS.join(',') })
       .then((res) => {
         const enriched = featuredBoats.enrichFromApi(res.items || [])
@@ -145,16 +126,9 @@ Page({
       this.refreshMarineConditions(this.data.selectedDate, true)
     }
 
-    const boatId = bookingOrders.consumePendingIndexReserve()
-    if (boatId == null || !auth.isLoggedIn()) {
-      return
-    }
-    if (!auth.isVerified()) {
-      bookingOrders.setPendingIndexReserve(boatId)
-      auth.promptVerify({ from: 'reserve' })
-      return
-    }
-    this.openReserveById(boatId)
+    // 登录/认证 redirect 已直达船舶详情，此处仅清理历史残留标记，避免取消后反复跳转
+    bookingOrders.consumePendingIndexReserve()
+    bookingOrders.clearReservePending()
   },
 
   refreshMarineConditions(dateStr: string, onlyIfChanged = false) {
@@ -220,64 +194,30 @@ Page({
 
   openReserve(event: any) {
     const id = Number(event.currentTarget.dataset.id)
-    if (!auth.isLoggedIn()) {
-      bookingOrders.setPendingIndexReserve(id)
-      auth.goLogin({ from: 'reserve' })
-      return
-    }
-    if (!auth.isVerified()) {
-      bookingOrders.setPendingIndexReserve(id)
-      auth.promptVerify({ from: 'reserve' })
-      return
-    }
-    this.openReserveById(id)
-  },
-
-  openReserveById(id: number) {
-    const boat = this.getBoatCard(id)
-    this.setData({ showReservePopup: true, reserveBoat: boat })
-  },
-
-  closeReserve() {
-    this.setData({ showReservePopup: false, reserveBoat: { name: '', captain: '' } })
-  },
-
-  confirmReserve() {
-    if (!auth.isLoggedIn()) {
-      auth.goLogin({ from: 'reserve' })
-      return
-    }
-    if (!auth.isVerified()) {
-      const boat = this.data.reserveBoat as { id?: number }
-      if (boat && boat.id != null) {
-        bookingOrders.setPendingIndexReserve(boat.id)
-      }
-      auth.promptVerify({ from: 'reserve' })
-      return
-    }
-    const card = this.data.reserveBoat as { id?: number; name?: string; captain?: string; price?: number; image?: string }
-    const ship = card.id != null ? this.getFeaturedShip(card.id) : null
-    bookingOrders.addBookingOrder({
-      boatId: (ship && ship.boatId) || '',
-      shipName: card.name || '海钓预约',
-      captainName: card.captain || '',
-      coverImage: card.image || '/images/Reservation1.jpg',
-      price: card.price,
+    const ship = this.getFeaturedShip(id)
+    if (!ship) return
+    const ctx = {
       date: this.data.selectedDate,
-      people: String(this.data.pax),
-      wharf: (ship && (ship.displayWharf || ship.wharf)) || '待定',
-      departWharf: (ship && (ship.displayWharf || ship.wharf)) || '',
-      status: 'pending_accept'
-    }).then(function () {
-      this.closeReserve()
-      bookingOrders.goOrdersAfterSuccess()
-    }.bind(this)).catch(function (err) {
-      if (err && err.code === 'NEED_LOGIN') {
-        auth.goLogin({ from: 'reserve' })
-        return
-      }
-      wx.showToast({ title: (err && err.message) || '预约失败', icon: 'none' })
-    })
+      people: String(this.data.pax)
+    }
+    const redirect = bookingNavigate.shipDetailUrl(ship)
+    if (!auth.isLoggedIn()) {
+      bookingOrders.saveBookingContext(Object.assign({}, ctx, { fromIndexReserve: true }))
+      bookingOrders.setPendingBookAfterVerify(true)
+      auth.goLogin({ from: 'reserve', redirect: redirect })
+      return
+    }
+    if (!auth.isVerified()) {
+      bookingOrders.saveBookingContext(Object.assign({}, ctx, { fromIndexReserve: true }))
+      bookingOrders.setPendingBookAfterVerify(true)
+      auth.promptVerify({
+        from: 'reserve',
+        content: '预约需先完成实名认证',
+        redirect: redirect
+      })
+      return
+    }
+    bookingNavigate.goReserveShip(ship, ctx)
   },
 
   onEventTap(event: any) {

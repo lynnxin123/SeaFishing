@@ -35,6 +35,20 @@
       </view>
       <view class="btn-action btn-gold" bindtap="onSkipLogin">暂不登录</view>
 
+      <view wx:if="{{showDevAccounts}}" class="dev-accounts">
+        <text class="dev-accounts__title">开发测试账号（仅模拟器）</text>
+        <view class="dev-accounts__row">
+          <view
+            wx:for="{{devAccounts}}"
+            wx:key="code"
+            class="dev-accounts__btn"
+            data-code="{{item.code}}"
+            data-name="{{item.nickName}}"
+            bindtap="onDevAccountLogin"
+          >{{item.nickName}}</view>
+        </view>
+      </view>
+
       <view class="agreement-row">
         <view class="agree-check {{agreed ? 'agree-check-on' : ''}}" bindtap="onToggleAgree">
           <view class="agree-tick" wx:if="{{agreed}}"></view>

@@ -9,6 +9,16 @@
     <view class="register-error__retry" bindtap="onRetryLoad">重新加载</view>
   </view>
 
+  <view wx:elif="{{pageState === 'auth'}}" class="register-auth">
+    <view class="register-head">
+      <text class="register-head__label">报名赛事</text>
+      <text class="register-head__name">{{competition.name}}</text>
+      <text class="register-head__meta">时间：{{competition.time}} · 地点：{{competition.location}}</text>
+    </view>
+    <text class="register-auth__hint">{{authHint}}</text>
+    <view class="register-auth__btn" bindtap="onAuthAction">继续报名</view>
+  </view>
+
   <block wx:elif="{{pageState === 'ready'}}">
   <view class="register-head">
     <text class="register-head__label">报名赛事</text>

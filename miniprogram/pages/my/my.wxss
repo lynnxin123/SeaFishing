@@ -131,6 +131,7 @@ page {
 }
 
 .bell-btn {
+  position: relative;
   width: 80rpx;
   height: 80rpx;
   display: flex;
@@ -138,6 +139,22 @@ page {
   justify-content: center;
   flex-shrink: 0;
   margin-left: 8rpx;
+}
+
+.bell-badge {
+  position: absolute;
+  top: 6rpx;
+  right: 4rpx;
+  min-width: 28rpx;
+  height: 28rpx;
+  line-height: 28rpx;
+  padding: 0 6rpx;
+  border-radius: 14rpx;
+  background: #f56c6c;
+  color: #fff;
+  font-size: 18rpx;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 /* 消息铃铛：线框造型 */

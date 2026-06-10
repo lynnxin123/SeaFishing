@@ -57,7 +57,20 @@ function submitFeedback(payload) {
   });
 }
 
+var FISH_SPECIES_OPTIONS = [
+  '不指定',
+  '黄鱼',
+  '鲈鱼',
+  '黑鱼',
+  '带鱼',
+  '鲅鱼',
+  '章鱼',
+  '石斑鱼',
+  '鲷鱼'
+];
+
 module.exports = {
+  FISH_SPECIES_OPTIONS: FISH_SPECIES_OPTIONS,
   fetchRanking: fetchRanking,
   fetchMyScore: fetchMyScore,
   submitMeasure: submitMeasure,

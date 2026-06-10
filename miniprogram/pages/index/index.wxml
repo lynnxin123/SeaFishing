@@ -146,17 +146,3 @@
     </view>
   </view>
 </view>
-<block wx:if="{{showReservePopup}}">
-  <view class="popup-mask" bindtap="closeReserve"></view>
-  <view class="popup-panel">
-    <text class="popup-title">预约确认</text>
-    <view class="popup-row"><text>航线：</text><text>{{reserveBoat.name}}</text></view>
-    <view class="popup-row"><text>船长：</text><text>{{reserveBoat.captain}}</text></view>
-    <view class="popup-row"><text>出行人数：</text><text>{{pax}} 人</text></view>
-    <view class="popup-row"><text>出发日期：</text><text>{{selectedDate}}</text></view>
-    <view class="popup-actions">
-      <view class="popup-btn cancel" bindtap="closeReserve">取消</view>
-      <view class="popup-btn confirm" bindtap="confirmReserve">确认预约</view>
-    </view>
-  </view>
-</block>

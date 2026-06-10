@@ -1,0 +1,87 @@
+<view class="detail-page">
+  <navigation-bar title="预约详情" back="{{true}}" homeButton="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+
+  <view wx:if="{{loading}}" class="loading-wrap">加载中...</view>
+
+  <view wx:elif="{{loadError}}" class="empty-wrap">
+    <text>{{loadError}}</text>
+    <view class="retry-btn" bindtap="loadDetail">重新加载</view>
+  </view>
+
+  <scroll-view
+    wx:else
+    class="detail-scroll"
+    scroll-y
+    enhanced
+    show-scrollbar="{{false}}"
+    style="height: {{scrollHeight}}px"
+  >
+    <image
+      wx:if="{{order.coverImage}}"
+      lazy-load
+      class="cover"
+      src="{{order.coverImage}}"
+      mode="aspectFill"
+    />
+
+    <view class="card">
+      <view class="title-row">
+        <text class="ship-name">{{order.shipName}}</text>
+        <text class="status">{{order.statusLabel}}</text>
+      </view>
+      <text class="meta">订单号 {{order.orderNo}}</text>
+      <text class="meta">船型 {{order.bookingTypeLabel || '散拼'}} · 时段 {{order.slotTime || '待定'}}</text>
+      <text class="meta">出行日期 {{order.date}}</text>
+      <text class="meta">出发码头 {{order.wharf || order.departWharf}}</text>
+      <text class="meta">人数 {{order.people}}人 · 船长 {{order.captainName}}</text>
+      <text class="meta price">订单金额 ¥{{order.totalAmount || order.price}}</text>
+      <text class="meta pay-tip" wx:if="{{order.status === 'pending_pay'}}">请先完成付款，付款后船长将确认接单</text>
+      <text class="meta" wx:if="{{order.isHoliday}}">节假日订单（默认不可取消）</text>
+      <text class="meta warn" wx:if="{{order.noShow}}">已标记爽约</text>
+    </view>
+
+    <view class="card">
+      <text class="section-title">取消与退款规则</text>
+      <block wx:for="{{rules.cancelTiers}}" wx:key="label">
+        <text class="rule-line">· {{item.label}}</text>
+      </block>
+      <text class="rule-line">· 7天内最多预约{{rules.maxBookingsIn7Days}}次</text>
+      <text class="rule-line">· 累计2次爽约限制7天，3次限制30天</text>
+    </view>
+
+    <view class="card card--last" wx:if="{{order.cancelInfo}}">
+      <text class="section-title">当前取消状态</text>
+      <block wx:if="{{order.cancelInfo.canCancel}}">
+        <text class="cancel-status ok">可取消</text>
+        <text class="meta" wx:if="{{order.cancelInfo.tierLabel}}">{{order.cancelInfo.tierLabel}}</text>
+        <text class="meta" wx:if="{{order.status === 'pending_pay'}}">未付款，取消无需扣款</text>
+        <text class="meta" wx:else>
+          预计退款 ¥{{order.cancelInfo.refundAmount}}（{{order.cancelInfo.refundPercent}}%）
+        </text>
+      </block>
+      <block wx:else>
+        <text class="cancel-status no">{{order.cancelInfo.reason || order.cancelInfo.tierLabel || '不可取消'}}</text>
+      </block>
+      <text
+        class="meta"
+        wx:if="{{order.cancelInfo.hoursUntilDeparture > 0}}"
+      >距出航约 {{order.cancelInfo.hoursUntilDeparture}} 小时</text>
+    </view>
+  </scroll-view>
+
+  <view class="foot" wx:if="{{order && !loading}}">
+    <view class="foot-actions">
+      <view
+        wx:if="{{order.status === 'pending_pay'}}"
+        class="foot-btn primary"
+        bindtap="onPayTap"
+      >去付款 ¥{{order.totalAmount || order.price}}</view>
+      <view
+        wx:if="{{order.canCancel}}"
+        class="foot-btn danger"
+        bindtap="onCancelTap"
+      >取消预约</view>
+      <view wx:elif="{{order.status !== 'pending_pay'}}" class="foot-btn disabled">不可取消</view>
+    </view>
+  </view>
+</view>

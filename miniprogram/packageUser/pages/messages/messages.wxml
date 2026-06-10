@@ -13,7 +13,7 @@
     <view wx:elif="{{loadError}}" class="messages-empty">
       <text class="messages-empty__icon" aria-hidden="true">⚠</text>
       <text class="messages-empty__text">{{loadError}}</text>
-      <view class="messages-retry" bindtap="loadMessages">重新加载</view>
+      <view class="messages-retry" bindtap="onRetry">重新加载</view>
     </view>
 
     <view wx:elif="{{messages.length === 0}}" class="messages-empty">
@@ -26,6 +26,8 @@
         wx:key="id"
         class="message-card {{item.read ? '' : 'message-card--unread'}}"
         data-id="{{item.id}}"
+        data-type="{{item.type}}"
+        data-ref-id="{{item.refId}}"
         data-title="{{item.title}}"
         data-content="{{item.content}}"
         bindtap="onItemTap"

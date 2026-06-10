@@ -18,6 +18,7 @@
           <view class="ui-bell__rim"></view>
           <view class="ui-bell__clapper"></view>
         </view>
+        <view wx:if="{{unreadMessageCount > 0}}" class="bell-badge">{{unreadMessageCount > 9 ? '9+' : unreadMessageCount}}</view>
       </view>
     </view>
 
@@ -26,6 +27,7 @@
       <image
         wx:if="{{userInfo.avatarUrl}}"
         class="avatar"
+        lazy-load
         src="{{userInfo.avatarUrl}}"
         mode="aspectFill"
       ></image>
@@ -47,6 +49,7 @@
           <view class="ui-bell__rim"></view>
           <view class="ui-bell__clapper"></view>
         </view>
+        <view wx:if="{{unreadMessageCount > 0}}" class="bell-badge">{{unreadMessageCount > 9 ? '9+' : unreadMessageCount}}</view>
       </view>
     </view>
 

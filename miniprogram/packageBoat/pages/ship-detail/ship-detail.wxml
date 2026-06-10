@@ -155,26 +155,133 @@
     <view class="book-btn" bindtap="onBook">下单预约</view>
   </view>
 
-  <!-- 预约信息弹层：选择出行日期与人数 -->
+  <!-- 预约信息弹层 -->
   <view class="booking-mask" wx:if="{{showBookingSheet}}" bindtap="closeBookingSheet"></view>
   <view class="booking-sheet" wx:if="{{showBookingSheet}}">
-    <view class="booking-sheet-title">填写预约信息</view>
-    <view class="booking-field">
-      <view class="booking-label">出行日期</view>
-      <picker mode="date" value="{{bookingDate}}" start="2000-01-01" end="2099-12-31" bindchange="onBookingDateChange">
-        <view class="booking-picker">{{bookingDate || '请选择日期'}}</view>
-      </picker>
+    <view class="booking-header">
+      <text class="booking-title">填写预约信息</text>
+      <text class="booking-subtitle">请核对行程信息并选择时段</text>
     </view>
-    <view class="booking-field">
-      <view class="booking-label">乘船人数（最多{{ship.maxNum}}人）</view>
-      <input
-        class="booking-input"
-        type="number"
-        placeholder="请输入乘船人数"
-        value="{{bookingPeople}}"
-        bindinput="onBookingPeopleInput"
-      />
-    </view>
+    <scroll-view class="booking-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="booking-summary">
+        <image
+          wx:if="{{ship.coverImage}}"
+          class="booking-summary-img"
+          src="{{ship.coverImage}}"
+          mode="aspectFill"
+        />
+        <view class="booking-summary-main">
+          <text class="booking-summary-name">{{ship.shipName}}</text>
+          <text class="booking-summary-meta">船长 {{ship.captainName}}</text>
+          <text class="booking-summary-price">¥{{ship.price}}/次</text>
+        </view>
+      </view>
+
+      <view class="booking-field">
+        <text class="booking-section-title">船型</text>
+        <view class="booking-type-row">
+          <view
+            class="booking-type {{bookingType === 'shared' ? 'booking-type--active' : ''}}"
+            data-type="shared"
+            bindtap="onBookingTypeTap"
+          >散拼</view>
+          <view
+            class="booking-type {{bookingType === 'charter' ? 'booking-type--active' : ''}}"
+            data-type="charter"
+            bindtap="onBookingTypeTap"
+          >包船</view>
+        </view>
+      </view>
+
+      <view class="booking-info-grid">
+        <view class="booking-info-item">
+          <text class="booking-info-label">出行日期</text>
+          <picker mode="date" value="{{bookingDate}}" start="2000-01-01" end="2099-12-31" bindchange="onBookingDateChange">
+            <view class="booking-info-value">{{bookingDate || '请选择日期'}}</view>
+          </picker>
+        </view>
+        <view class="booking-info-item">
+          <text class="booking-info-label">乘船人数（最多{{ship.maxNum}}人）</text>
+          <input
+            class="booking-info-input"
+            type="number"
+            placeholder="请输入人数"
+            value="{{bookingPeople}}"
+            bindinput="onBookingPeopleInput"
+          />
+        </view>
+      </view>
+
+      <view class="booking-field">
+        <text class="booking-section-title">出航时段</text>
+        <view wx:if="{{slotsLoading}}" class="slot-hint">加载时段库存...</view>
+        <view wx:elif="{{slotsLoadError}}" class="slot-hint slot-hint--retry" bindtap="onRetryLoadSlots">{{slotsLoadError}}</view>
+        <view wx:elif="{{!slotList.length}}" class="slot-hint">该船暂未配置出航时段</view>
+        <view wx:else class="slot-list">
+          <view
+            wx:for="{{slotList}}"
+            wx:key="sailSlotId"
+            class="slot-item {{selectedSlotId === item.sailSlotId ? 'slot-item--active' : ''}} {{(bookingType === 'charter' ? !item.availableCharter : !item.availableShared) ? 'slot-item--disabled' : ''}}"
+            data-id="{{item.sailSlotId}}"
+            data-time="{{item.slotTime}}"
+            data-index="{{index}}"
+            bindtap="onSlotTap"
+          >
+            <text class="slot-time">{{item.label || item.slotTime}}</text>
+            <text class="slot-stock" wx:if="{{item.bookingClosed}}">
+              {{item.bookingClosedReason || '已截止'}}
+            </text>
+            <text class="slot-stock" wx:elif="{{bookingType === 'charter'}}">
+              {{item.availableCharter ? '可包船' : '已约满'}}
+            </text>
+            <text class="slot-stock" wx:else>
+              余{{item.remainingPeople}}位
+            </text>
+          </view>
+        </view>
+      </view>
+
+      <view class="booking-divider"></view>
+      <text class="booking-section-title">联系方式</text>
+      <view class="booking-field">
+        <view class="booking-label-row">
+          <text class="booking-label">联系电话</text>
+          <text class="booking-tag booking-tag--req" wx:if="{{!isTestAccount}}">必填</text>
+          <text class="booking-tag booking-tag--test" wx:else>测试可模拟</text>
+        </view>
+        <input
+          class="booking-input"
+          type="number"
+          placeholder="{{isTestAccount ? '测试号可填 13800000001' : '请填写真实手机号'}}"
+          value="{{bookingPhone}}"
+          bindinput="onBookingPhoneInput"
+          maxlength="11"
+        />
+      </view>
+      <view class="booking-field">
+        <view class="booking-label-row">
+          <text class="booking-label">微信号</text>
+          <text class="booking-tag booking-tag--opt">选填</text>
+        </view>
+        <input
+          class="booking-input"
+          placeholder="{{isTestAccount ? '测试号可填 haidia_test_1' : '请填写真实微信号'}}"
+          value="{{bookingWechat}}"
+          bindinput="onBookingWechatInput"
+          maxlength="32"
+        />
+      </view>
+
+      <view class="booking-rules" wx:if="{{rulesSummary}}">
+        <text class="booking-rules-title">预约与取消规则</text>
+        <block wx:for="{{rulesSummary.cancelTiers}}" wx:key="label">
+          <text class="booking-rules-line">· {{item.label}}</text>
+        </block>
+        <text class="booking-rules-line">· 需提前至少{{rulesSummary.minBookingLeadHours}}小时预约，已过出航时间不可约</text>
+        <text class="booking-rules-line">· 7天内最多预约{{rulesSummary.maxBookingsIn7Days}}次</text>
+        <text class="booking-rules-line">· 同一天同一时段仅可预约1次</text>
+      </view>
+    </scroll-view>
     <view class="booking-actions">
       <view class="booking-cancel" bindtap="closeBookingSheet">取消</view>
       <view class="booking-confirm" bindtap="onConfirmBooking">确认预约</view>

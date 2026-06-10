@@ -242,3 +242,25 @@
   font-size: 28rpx;
   color: #999999;
 }
+
+.orders-exit-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16rpx;
+  padding: 20rpx 24rpx calc(20rpx + env(safe-area-inset-bottom));
+  background: #fff;
+  border-top: 1rpx solid #e8e8e8;
+}
+
+.orders-exit-link {
+  font-size: 28rpx;
+  color: #0c6dff;
+  padding: 8rpx 16rpx;
+}
+
+.orders-exit-dot {
+  font-size: 28rpx;
+  color: #ccc;
+}

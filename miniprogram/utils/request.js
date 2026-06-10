@@ -2,6 +2,7 @@ var api = require('../config/api');
 
 var _tokenCache = '';
 var _inflightGets = {};
+var _getResponseCache = {};
 var DEFAULT_TIMEOUT = 15000;
 var GET_RETRY_ONCE = true;
 
@@ -89,6 +90,13 @@ function requestOnce(options) {
         if (res.statusCode === 401) {
           wx.removeStorageSync('token');
           clearTokenCache();
+          var err401 = normalizeError(res.data, null);
+          err401.code = 'UNAUTHORIZED';
+          try {
+            require('./auth').handleUnauthorized();
+          } catch (e) {}
+          reject(err401);
+          return;
         }
         reject(normalizeError(res.data, null));
       },
@@ -112,14 +120,42 @@ function request(options) {
   });
 }
 
-function get(url, data) {
+function invalidateGetCache(urlPrefix) {
+  if (!urlPrefix) {
+    _getResponseCache = {};
+    return;
+  }
+  Object.keys(_getResponseCache).forEach(function (key) {
+    if (key.indexOf(urlPrefix) === 0) {
+      delete _getResponseCache[key];
+    }
+  });
+}
+
+function get(url, data, options) {
+  options = options || {};
   var key = buildGetKey(url, data);
+  var ttl = options.cacheTtlMs;
+  if (ttl > 0 && _getResponseCache[key]) {
+    var cached = _getResponseCache[key];
+    if (Date.now() - cached.ts < ttl) {
+      return Promise.resolve(cached.data);
+    }
+    delete _getResponseCache[key];
+  }
   if (_inflightGets[key]) {
     return _inflightGets[key];
   }
-  _inflightGets[key] = request({ url: url, method: 'GET', data: data }).finally(function () {
-    delete _inflightGets[key];
-  });
+  _inflightGets[key] = request({ url: url, method: 'GET', data: data })
+    .then(function (res) {
+      if (ttl > 0) {
+        _getResponseCache[key] = { data: res, ts: Date.now() };
+      }
+      return res;
+    })
+    .finally(function () {
+      delete _inflightGets[key];
+    });
   return _inflightGets[key];
 }
 
@@ -140,5 +176,6 @@ module.exports = {
   },
   request: request,
   getToken: getToken,
-  clearTokenCache: clearTokenCache
+  clearTokenCache: clearTokenCache,
+  invalidateGetCache: invalidateGetCache
 };

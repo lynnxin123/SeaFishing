@@ -3,28 +3,14 @@ var STORAGE_KEY = 'message_read_ids';
 var DEFAULT_MESSAGES = [
   {
     id: 'welcome',
+    type: 'system',
     title: '欢迎使用海发海钓',
     summary: '平台主推船只、赛事报名、海钓地图已开放，祝您渔获满满。',
     content:
       '欢迎使用海发海钓小程序。您可在首页预约主推船只，在赛事 Tab 报名海钓比赛，在海钓地图查看钓点与关联钓船。如有问题请联系客服。',
     time: '系统通知',
-    read: false
-  },
-  {
-    id: 'verify',
-    title: '实名认证提醒',
-    summary: '预约船只与赛事报名前，请先完成实名认证。',
-    content: '为保障出海安全，预约船只与赛事报名需完成实名认证。请前往「我的」-「去认证」填写真实姓名与证件信息。',
-    time: '系统通知',
-    read: false
-  },
-  {
-    id: 'event',
-    title: '赛事报名开放',
-    summary: '海发海岛海钓系列赛持续更新，敬请关注赛事列表。',
-    content: '赛事列表会同步最新场次与报名状态，报名成功后可在「我的」-「赛事报名订单」查看记录。',
-    time: '活动通知',
-    read: false
+    read: false,
+    refId: ''
   }
 ];
 
@@ -41,19 +27,121 @@ function saveReadIds(ids) {
   wx.setStorageSync(STORAGE_KEY, ids);
 }
 
-function fetchMessages() {
+function withLocalReadState(list) {
   var readIds = getReadIds();
-  return Promise.resolve(
-    DEFAULT_MESSAGES.map(function (item) {
-      return Object.assign({}, item, {
-        read: readIds.indexOf(item.id) >= 0
-      });
+  return (list || []).map(function (item) {
+    if (item.read) return item;
+    return Object.assign({}, item, {
+      read: readIds.indexOf(item.id) >= 0
+    });
+  });
+}
+
+function fetchMessages() {
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!token) {
+    return Promise.resolve([]);
+  }
+  if (!api.USE_API) {
+    return Promise.resolve(withLocalReadState(DEFAULT_MESSAGES));
+  }
+
+  var request = require('./request');
+  return request
+    .get('/messages', { page: 1, pageSize: 50 })
+    .then(function (res) {
+      var items = (res && res.items) || (Array.isArray(res) ? res : []);
+      if (!items.length) {
+        return withLocalReadState(DEFAULT_MESSAGES);
+      }
+      return items;
     })
-  );
+    .catch(function () {
+      return withLocalReadState(DEFAULT_MESSAGES);
+    });
+}
+
+function countUnreadInList(list) {
+  var n = 0;
+  (list || []).forEach(function (item) {
+    if (!item.read) n++;
+  });
+  return n;
+}
+
+function fetchUnreadCount(options) {
+  options = options || {};
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!token) {
+    return Promise.resolve(0);
+  }
+  if (!api.USE_API) {
+    return fetchMessages().then(countUnreadInList);
+  }
+
+  var request = require('./request');
+  var cacheTtl = options.force ? 0 : 20000;
+  return request
+    .get('/messages', { page: 1, pageSize: 50 }, { cacheTtlMs: cacheTtl })
+    .then(function (res) {
+      var items = (res && res.items) || (Array.isArray(res) ? res : []);
+      if (!items.length) {
+        return countUnreadInList(withLocalReadState(DEFAULT_MESSAGES));
+      }
+      return request
+        .get('/messages/unread-count', null, { cacheTtlMs: cacheTtl })
+        .then(function (r) {
+          return (r && r.count) || 0;
+        });
+    })
+    .catch(function () {
+      return countUnreadInList(withLocalReadState(DEFAULT_MESSAGES));
+    });
+}
+
+var TAB_MY_INDEX = 4;
+
+function syncTabBarBadge(count) {
+  try {
+    if (!count || count <= 0) {
+      wx.removeTabBarBadge({ index: TAB_MY_INDEX });
+      return;
+    }
+    var text = count > 99 ? '99+' : count > 9 ? '9+' : String(count);
+    wx.setTabBarBadge({ index: TAB_MY_INDEX, text: text });
+  } catch (e) {}
+}
+
+function refreshTabBarBadge() {
+  var token = wx.getStorageSync('token');
+  if (!token) {
+    syncTabBarBadge(0);
+    return Promise.resolve(0);
+  }
+  return fetchUnreadCount().then(function (count) {
+    syncTabBarBadge(count);
+    return count;
+  });
 }
 
 function markRead(id) {
   if (!id) return;
+
+  try {
+    var req = require('./request');
+    req.invalidateGetCache('/messages/unread-count');
+    req.invalidateGetCache('/messages');
+  } catch (e) {}
+
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (api.USE_API && token && String(id).indexOf('welcome') !== 0) {
+    var request = require('./request');
+    request.patch('/messages/' + encodeURIComponent(id) + '/read').catch(function () {});
+  }
+
   var ids = getReadIds();
   if (ids.indexOf(id) < 0) {
     ids.push(id);
@@ -63,5 +151,8 @@ function markRead(id) {
 
 module.exports = {
   fetchMessages: fetchMessages,
-  markRead: markRead
+  fetchUnreadCount: fetchUnreadCount,
+  markRead: markRead,
+  syncTabBarBadge: syncTabBarBadge,
+  refreshTabBarBadge: refreshTabBarBadge
 };

@@ -31,7 +31,7 @@
     >
       <!-- 赛事大图 Banner -->
       <view class="comp-card__banner" data-index="{{index}}" catchtap="onPreviewImage">
-        <image class="comp-card__hero" src="{{item.cover}}" mode="aspectFill" data-index="{{index}}" binderror="onCoverError" />
+        <image lazy-load class="comp-card__hero" src="{{item.cover}}" mode="aspectFill" data-index="{{index}}" binderror="onCoverError" />
         <view class="comp-card__banner-mask"></view>
         <view class="comp-card__preview-tip">
           <text class="comp-card__preview-icon">⤢</text>

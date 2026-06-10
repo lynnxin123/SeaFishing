@@ -25,6 +25,10 @@ Page({
     pageSize: 20
   },
 
+  onLoad(options) {
+    this._forceRefresh = !!(options && options.refresh === '1');
+  },
+
   onShow() {
     if (!auth.isLoggedIn()) {
       wx.showToast({ title: '请先登录', icon: 'none' });
@@ -33,9 +37,19 @@ Page({
       }, 800);
       return;
     }
-    if (!pageRefresh.shouldRefresh('event-orders', 30000)) {
+    if (this._forceRefresh) {
+      this._forceRefresh = false;
+      pageRefresh.resetRefresh('event-orders');
+      this.loadList(true);
       return;
     }
+    if (!this.data.list.length || pageRefresh.shouldRefresh('event-orders', 30000)) {
+      this.loadList(true);
+    }
+  },
+
+  onRetry() {
+    pageRefresh.resetRefresh('event-orders');
     this.loadList(true);
   },
 

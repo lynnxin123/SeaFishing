@@ -6,6 +6,7 @@ import {
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { RewardsService } from '../users/rewards.service';
+import { CompetitionStartReminderService } from './competition-start-reminder.service';
 import {
   CompetitionFeedbackDto,
   MeasureFishDto,
@@ -18,6 +19,7 @@ export class CompetitionsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly rewardsService: RewardsService,
+    private readonly startReminder: CompetitionStartReminderService,
   ) {}
 
   async list(limit?: number) {
@@ -132,6 +134,10 @@ export class CompetitionsService {
       fishFood: 2,
       remark: `报名赛事：${competition.name}`,
     });
+
+    await this.startReminder
+      .trySendStartReminder(registration, competition)
+      .catch(() => {});
 
     return registration;
   }

@@ -17,6 +17,10 @@ class UpdateProfileDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  wechatId?: string;
 }
 
 class VerifyIdDto {

@@ -49,7 +49,12 @@
     <view wx:if="{{pageTitle === '长度测量'}}" class="feature-card">
       <text class="feature-card__subtitle">录入测量</text>
       <input class="feature-input" type="digit" placeholder="渔获长度(cm)" value="{{inputValue}}" bindinput="onInputValue" />
-      <input class="feature-input" placeholder="鱼种（可选）" value="{{inputSpecies}}" bindinput="onInputSpecies" />
+      <picker mode="selector" range="{{speciesOptions}}" value="{{speciesIndex}}" bindchange="onSpeciesChange">
+        <view class="feature-input feature-picker">
+          <text class="{{inputSpecies ? 'feature-picker__text' : 'feature-picker__placeholder'}}">{{inputSpecies || '请选择鱼种（可选）'}}</text>
+          <text class="feature-picker__arrow">▼</text>
+        </view>
+      </picker>
       <view class="feature-submit" bindtap="onSubmitMeasure">提交测量</view>
     </view>
 

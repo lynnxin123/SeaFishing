@@ -14,11 +14,17 @@ import { SpotsModule } from './spots/spots.module';
 import { FavoritesModule } from './favorites/favorites.module';
 import { BannersModule } from './banners/banners.module';
 import { AdminModule } from './admin/admin.module';
+import { MessagesModule } from './messages/messages.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60_000,
+        limit: process.env.NODE_ENV === 'production' ? 120 : 600,
+      },
+    ]),
     PrismaModule,
     AuthModule,
     UsersModule,
@@ -29,6 +35,7 @@ import { AdminModule } from './admin/admin.module';
     FavoritesModule,
     BannersModule,
     AdminModule,
+    MessagesModule,
     HealthModule,
   ],
   providers: [

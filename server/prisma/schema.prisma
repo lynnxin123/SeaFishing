@@ -14,6 +14,12 @@ enum BookingStatus {
   departed
   completed
   cancelled
+  no_show
+}
+
+enum BookingType {
+  shared
+  charter
 }
 
 enum CompetitionStatus {
@@ -29,6 +35,7 @@ model User {
   nickName  String   @default("微信用户") @map("nick_name")
   avatarUrl String   @default("") @map("avatar_url")
   phone     String   @default("")
+  wechatId  String   @default("") @map("wechat_id")
   verified  Boolean  @default(false)
   realName  String   @default("") @map("real_name")
   idType    String   @default("身份证") @map("id_type")
@@ -50,8 +57,28 @@ model User {
   competitionWeights        CompetitionWeightRecord[]
   competitionFeedbacks      CompetitionFeedback[]
   competitionRankings       CompetitionRanking[]
+  bookingStat               UserBookingStat?
+  messages                  UserMessage[]
 
   @@map("users")
+}
+
+model UserMessage {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  type      String   @default("system")
+  title     String
+  summary   String   @default("")
+  content   String   @db.Text
+  read      Boolean  @default(false)
+  refId     String?  @map("ref_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
+  @@map("user_messages")
 }
 
 model Boat {
@@ -82,6 +109,8 @@ model Boat {
   spotLinks   SpotBoatLink[]
   reviews     BoatReview[]
   favorites   BoatFavorite[]
+  sailConfigs BoatSailConfig[]
+  inventories SlotInventory[]
 
   @@index([wharf])
   @@index([active])
@@ -104,15 +133,106 @@ model Booking {
   people       Int           @default(1)
   captainName  String        @default("") @map("captain_name")
   status       BookingStatus @default(pending_accept)
+  bookingType  BookingType   @default(shared) @map("booking_type")
+  sailSlotId   String?       @map("sail_slot_id")
+  slotTime     String        @default("") @map("slot_time")
+  departureAt  DateTime?     @map("departure_at")
+  totalAmount  Decimal       @default(0) @map("total_amount") @db.Decimal(10, 2)
+  refundAmount Decimal       @default(0) @map("refund_amount") @db.Decimal(10, 2)
+  refundPercent Int          @default(0) @map("refund_percent")
+  cancelledAt  DateTime?     @map("cancelled_at")
+  cancelReason String        @default("") @map("cancel_reason")
+  cancelType   String        @default("") @map("cancel_type")
+  noShow       Boolean       @default(false) @map("no_show")
+  isHoliday    Boolean       @default(false) @map("is_holiday")
+  paidAt            DateTime? @map("paid_at")
+  paymentRemindedAt DateTime? @map("payment_reminded_at")
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  boat Boat? @relation(fields: [boatId], references: [id], onDelete: SetNull)
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boat     Boat?     @relation(fields: [boatId], references: [id], onDelete: SetNull)
+  sailSlot SailSlot? @relation(fields: [sailSlotId], references: [id], onDelete: SetNull)
 
   @@index([userId, status])
   @@index([userId, createdAt])
+  @@index([userId, date, slotTime])
+  @@index([boatId, date, slotTime])
+  @@index([departureAt])
+  @@index([status, createdAt])
   @@map("bookings")
+}
+
+model SailSlot {
+  id        String   @id @default(cuid())
+  slotKey   String   @unique @map("slot_key")
+  slotTime  String   @map("slot_time")
+  label     String
+  sortOrder Int      @default(0) @map("sort_order")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  boatConfigs BoatSailConfig[]
+  inventories SlotInventory[]
+  bookings    Booking[]
+
+  @@map("sail_slots")
+}
+
+model BoatSailConfig {
+  id           String  @id @default(cuid())
+  boatId       String  @map("boat_id")
+  sailSlotId   String  @map("sail_slot_id")
+  maxPeople    Int     @default(8) @map("max_people")
+  maxOrders    Int     @default(10) @map("max_orders")
+  priceShared  Decimal @default(0) @map("price_shared") @db.Decimal(10, 2)
+  priceCharter Decimal @default(0) @map("price_charter") @db.Decimal(10, 2)
+  active       Boolean @default(true)
+
+  boat     Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  sailSlot SailSlot @relation(fields: [sailSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([boatId, sailSlotId])
+  @@index([boatId])
+  @@map("boat_sail_configs")
+}
+
+model SlotInventory {
+  id              String   @id @default(cuid())
+  boatId          String   @map("boat_id")
+  sailSlotId      String   @map("sail_slot_id")
+  sailDate        String   @map("sail_date")
+  bookedPeople    Int      @default(0) @map("booked_people")
+  bookedOrders    Int      @default(0) @map("booked_orders")
+  isHoliday       Boolean  @default(false) @map("is_holiday")
+  maritimeBlocked Boolean  @default(false) @map("maritime_blocked")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  boat     Boat     @relation(fields: [boatId], references: [id], onDelete: Cascade)
+  sailSlot SailSlot @relation(fields: [sailSlotId], references: [id], onDelete: Cascade)
+
+  @@unique([boatId, sailSlotId, sailDate])
+  @@index([sailDate])
+  @@map("slot_inventories")
+}
+
+model BookingRuleConfig {
+  id        String   @id @default("default")
+  rules     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("booking_rule_configs")
+}
+
+model UserBookingStat {
+  userId          String    @id @map("user_id")
+  noShowCount     Int       @default(0) @map("no_show_count")
+  restrictedUntil DateTime? @map("restricted_until")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_booking_stats")
 }
 
 model FishingSpot {
@@ -204,6 +324,7 @@ model CompetitionRegistration {
   people           Int      @default(1)
   emergencyContact String   @default("") @map("emergency_contact")
   remark           String   @default("") @db.Text
+  startRemindedAt  DateTime? @map("start_reminded_at")
   createdAt        DateTime @default(now()) @map("created_at")
 
   competition Competition @relation(fields: [competitionId], references: [id], onDelete: Cascade)

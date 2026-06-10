@@ -1,0 +1,116 @@
+{
+  "startedAt": "2026-06-10T06:56:05.013Z",
+  "finishedAt": "2026-06-10T06:56:12.235Z",
+  "accounts": [
+    "test01",
+    "test02",
+    "test03",
+    "test04",
+    "test05"
+  ],
+  "apiBase": "http://127.0.0.1:3000/api",
+  "suites": [
+    {
+      "suiteName": "全功能全流程",
+      "pass": 69,
+      "fail": 0,
+      "total": 69,
+      "failures": [],
+      "ok": true
+    },
+    {
+      "suiteName": "预约取消全场景",
+      "pass": 42,
+      "fail": 0,
+      "total": 42,
+      "failures": [],
+      "ok": true
+    },
+    {
+      "suiteName": "五账号冒烟链路",
+      "pass": 51,
+      "fail": 0,
+      "total": 51,
+      "failures": [],
+      "ok": true
+    }
+  ],
+  "pageChecks": [
+    {
+      "name": "app.json 主包页面",
+      "ok": true,
+      "detail": "5 个"
+    },
+    {
+      "name": "app.json 分包页面",
+      "ok": true,
+      "detail": "13 个"
+    },
+    {
+      "name": "页面路由总数",
+      "ok": false,
+      "detail": "18 个"
+    },
+    {
+      "name": "页面存在 pages/index/index",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 pages/map/map",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 pages/my/my",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 packageBoat/pages/ship-detail/ship-detail",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 packageOrder/pages/booking-orders/booking-orders",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 packageOrder/pages/booking-detail/booking-detail",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 packageEvent/pages/event-detail/event-detail",
+      "ok": true,
+      "detail": "文件齐全"
+    },
+    {
+      "name": "页面存在 packageUser/pages/login/login",
+      "ok": true,
+      "detail": "文件齐全"
+    }
+  ],
+  "manualUiChecklist": [
+    "首页：轮播、主推船、赛事 Tab、预约弹层/跳转",
+    "海钓约船：搜索、筛选、船舶详情、预约表单样式与时段选择",
+    "海钓地图：标记、收藏、导航",
+    "赛事报名：列表、详情、报名、测鱼/称重/排行",
+    "我的：登录、实名、订单列表、消息角标、收藏",
+    "预约详情/订单列表：滚动、付款、取消",
+    "一键拨号、客服微信展示（船只/赛事详情）",
+    "订阅消息授权弹窗（付款/接单/开赛提醒）"
+  ],
+  "summary": {
+    "apiPass": 162,
+    "apiFail": 0,
+    "apiTotal": 162,
+    "pageChecksPass": 10,
+    "pageChecksFail": 1,
+    "allApiPassed": true,
+    "cleanupDone": true
+  },
+  "bugs": [],
+  "conclusion": "API 全量深度测试通过，表结构与业务规则未改动；小程序 UI 需在真机按清单补验。"
+}

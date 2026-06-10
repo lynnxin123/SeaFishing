@@ -1,5 +1,5 @@
 <view class="orders-page">
-  <navigation-bar title="海钓预约订单" back="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
+  <navigation-bar title="海钓预约订单" back="{{true}}" homeButton="{{true}}" color="#141414" background="#ffffff"></navigation-bar>
 
   <scroll-view class="tab-scroll" scroll-x enhanced show-scrollbar="{{false}}">
     <view class="tab-row">
@@ -25,7 +25,7 @@
       <text class="empty-icon" aria-hidden="true">⚠</text>
       <text class="empty-text">{{loadError}}</text>
       <text class="empty-hint">请检查网络后重试</text>
-      <view class="retry-btn" bindtap="loadOrders">重新加载</view>
+      <view class="retry-btn" bindtap="onRetryLoad">重新加载</view>
     </view>
 
     <view wx:elif="{{isEmpty}}" class="empty-wrap">
@@ -47,7 +47,8 @@
               <text class="order-ship">{{item.shipName}}</text>
               <text class="order-status">{{item.statusLabel}}</text>
             </view>
-            <text class="order-meta">出行日期：{{item.date || '待定'}}</text>
+            <text class="order-meta">出行日期：{{item.date || '待定'}} {{item.slotTime}}</text>
+            <text class="order-meta" wx:if="{{item.bookingTypeLabel}}">船型：{{item.bookingTypeLabel}}</text>
             <text class="order-meta">出发码头：{{item.wharf || item.departWharf || '待定'}}</text>
             <text class="order-meta" wx:if="{{item.people}}">预约人数：{{item.people}}人</text>
             <view class="order-foot">
@@ -65,6 +66,7 @@
               <view
                 wx:if="{{item.status === 'pending_pay'}}"
                 class="order-btn order-btn--primary"
+                data-id="{{item.id}}"
                 bindtap="onPayTap"
               >去付款</view>
             </view>
@@ -72,5 +74,11 @@
         </view>
       </view>
     </scroll-view>
+  </view>
+
+  <view class="orders-exit-bar">
+    <view class="orders-exit-link" bindtap="onGoHome">返回首页</view>
+    <text class="orders-exit-dot">·</text>
+    <view class="orders-exit-link" bindtap="onGoMy">我的</view>
   </view>
 </view>

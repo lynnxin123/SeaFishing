@@ -267,6 +267,12 @@ function fetchCompetitionById(id, options) {
   if (!api.USE_API) {
     return Promise.resolve(getCompetitionById(id));
   }
+  if (!options.force) {
+    var cached = getCompetitionById(id);
+    if (cached) {
+      return Promise.resolve(cached);
+    }
+  }
   var request = require('./request');
   return request
     .get('/competitions/' + id)
@@ -288,19 +294,71 @@ function fetchCompetitionById(id, options) {
     });
 }
 
+var _registeredCompIds = null;
+var _registeredCacheTs = 0;
+var REGISTRATION_CACHE_TTL = 60000;
+
+function invalidateRegistrationCache() {
+  _registeredCompIds = null;
+  _registeredCacheTs = 0;
+  try {
+    require('./pageRefresh').resetRefresh('event-orders');
+  } catch (e) {}
+}
+
+function fetchRegisteredCompetitionIds(options) {
+  options = options || {};
+  var api = require('../config/api');
+  var token = wx.getStorageSync('token');
+  if (!api.USE_API || !token) {
+    return Promise.resolve([]);
+  }
+  var now = Date.now();
+  if (!options.force && _registeredCompIds && now - _registeredCacheTs < REGISTRATION_CACHE_TTL) {
+    return Promise.resolve(_registeredCompIds);
+  }
+  return fetchMyRegistrations({ page: 1, pageSize: 50 })
+    .then(function (res) {
+      var items = (res && res.items) || [];
+      _registeredCompIds = items.map(function (item) {
+        return String(item.competitionId);
+      });
+      _registeredCacheTs = Date.now();
+      return _registeredCompIds;
+    })
+    .catch(function () {
+      return _registeredCompIds || [];
+    });
+}
+
+function hasRegisteredCompetition(legacyId) {
+  if (legacyId == null || legacyId === '') {
+    return Promise.resolve(false);
+  }
+  var id = String(legacyId);
+  return fetchRegisteredCompetitionIds().then(function (ids) {
+    return ids.indexOf(id) >= 0;
+  });
+}
+
 function registerCompetition(id, form) {
   var api = require('../config/api');
   if (!api.USE_API) {
     return Promise.resolve({ ok: true });
   }
   var request = require('./request');
-  return request.post('/competitions/' + id + '/register', {
-    realName: form.realName,
-    phone: form.phone,
-    people: Number(form.people),
-    emergencyContact: form.emergencyContact || '',
-    remark: form.remark || ''
-  });
+  return request
+    .post('/competitions/' + id + '/register', {
+      realName: form.realName,
+      phone: form.phone,
+      people: Number(form.people),
+      emergencyContact: form.emergencyContact || '',
+      remark: form.remark || ''
+    })
+    .then(function (res) {
+      invalidateRegistrationCache();
+      return res;
+    });
 }
 
 function fetchMyRegistrations(options) {
@@ -413,6 +471,36 @@ function fetchBanners() {
     });
 }
 
+function goEventOrdersAfterSuccess() {
+  var pageHome = require('./pageHome');
+  invalidateRegistrationCache();
+  wx.showToast({
+    title: '报名提交成功',
+    icon: 'success',
+    duration: 1500,
+    mask: true
+  });
+  setTimeout(function () {
+    var url = '/packageOrder/pages/event-orders/event-orders?refresh=1&from=success';
+    wx.redirectTo({
+      url: url,
+      fail: function () {
+        wx.navigateTo({ url: url });
+      },
+      success: function () {
+        setTimeout(function () {
+          pageHome.promptReturnHome({
+            title: '报名成功',
+            content: '报名记录已保存。可返回首页，或留在此页查看订单。',
+            confirmText: '留在此页',
+            cancelText: '返回首页'
+          });
+        }, 400);
+      }
+    });
+  }, 1500);
+}
+
 module.exports = {
   buildFeatureRoute: buildFeatureRoute,
   pickActiveCompetitionId: pickActiveCompetitionId,
@@ -434,10 +522,14 @@ module.exports = {
   fetchCompetitionList: fetchCompetitionList,
   fetchCompetitionById: fetchCompetitionById,
   registerCompetition: registerCompetition,
+  hasRegisteredCompetition: hasRegisteredCompetition,
+  fetchRegisteredCompetitionIds: fetchRegisteredCompetitionIds,
+  invalidateRegistrationCache: invalidateRegistrationCache,
   fetchMyRegistrations: fetchMyRegistrations,
   fetchBanners: fetchBanners,
   getCompetitionById: getCompetitionById,
   getIndexEventCards: getIndexEventCards,
   openEventListTab: openEventListTab,
-  openEventDetail: openEventDetail
+  openEventDetail: openEventDetail,
+  goEventOrdersAfterSuccess: goEventOrdersAfterSuccess
 };
